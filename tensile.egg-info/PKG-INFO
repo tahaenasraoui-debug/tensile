@@ -1,0 +1,27 @@
+Metadata-Version: 2.4
+Name: tensile
+Version: 0.1.0
+Summary: A readable, educational deep learning framework written from scratch in pure NumPy.
+Requires-Python: >=3.10
+Description-Content-Type: text/markdown
+Requires-Dist: numpy>=1.22.0
+Provides-Extra: dev
+Requires-Dist: pytest>=7.0.0; extra == "dev"
+Requires-Dist: graphviz>=0.20.0; extra == "dev"
+
+# Tensile
+
+A clean, educational reverse-mode automatic differentiation and deep learning framework written from scratch using **pure NumPy** (Python 3.10+).
+
+## Quickstart
+
+```bash
+# Install in editable mode
+pip install -e .
+
+# Run numerical gradient checks
+pytest tests/test_gradcheck.py
+
+# Run synthetic MNIST training example
+python examples/train_mnist_synthetic.py
+```
