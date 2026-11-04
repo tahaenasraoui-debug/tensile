@@ -1,4 +1,4 @@
-<!-- visualizer/web/index.html -->
+<!-- index.html (Root of repository for GitHub Pages) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -37,7 +37,15 @@
       justify-content: space-between;
       gap: 12px;
     }
-    header h1 { font-size: 1.05rem; letter-spacing: 0.4px; color: var(--accent); }
+    header h1 { font-size: 1.05rem; letter-spacing: 0.4px; color: var(--accent); display: flex; align-items: center; gap: 10px; }
+    .engine-badge {
+      font-size: 0.7rem;
+      padding: 3px 8px;
+      border-radius: 12px;
+      background: #1f2937;
+      border: 1px solid #3fb950;
+      color: #3fb950;
+    }
     .controls {
       display: flex;
       flex-wrap: wrap;
@@ -59,6 +67,7 @@
     button.danger { background: #da3633; border-color: #f85149; }
     .metrics-bar {
       display: flex;
+      flex-wrap: wrap;
       gap: 18px;
       font-size: 0.85rem;
       background: #090d13;
@@ -138,7 +147,10 @@
 </head>
 <body>
   <header>
-    <h1>⚡ TENSILE // Autograd DAG & 2D Neural Sandbox</h1>
+    <h1>
+      ⚡ TENSILE // Autograd DAG & 2D Neural Sandbox
+      <span id="engineBadge" class="engine-badge">Engine: Initializing...</span>
+    </h1>
     <div class="controls">
       <label>Dataset
         <select id="datasetSelect">
@@ -181,7 +193,6 @@
   </div>
 
   <main>
-    <!-- Canvas 1: 2D Scatter & Live Decision Boundary Contour Map -->
     <section class="card">
       <div class="card-header">
         <span>2D Decision Boundary Contour</span>
@@ -193,7 +204,6 @@
       </div>
     </section>
 
-    <!-- Canvas 2: Directed Computational Graph & Backprop Playback Scrubber -->
     <section class="card">
       <div class="card-header">
         <span>Dynamic Computation Graph (DAG)</span>
@@ -214,6 +224,6 @@
     </section>
   </main>
 
-  <script src="/static/app.js"></script>
+  <script src="./app.js"></script>
 </body>
 </html>
