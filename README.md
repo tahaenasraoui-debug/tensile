@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Tensile
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-GitHub_Pages-2ea44f?style=for-the-badge&logo=github)](https://tahaenasraoui-debug.github.io/tensile/)
@@ -5,12 +6,59 @@
 **Tensile** is a clean, readable, and production-grade reverse-mode automatic differentiation engine and deep learning framework built entirely from scratch using **pure NumPy** (Python 3.11+). Paired with an interactive **Computational Graph (DAG) Inspector & 2D Neural Network Sandbox**, it offers complete algorithmic transparency into how tensors, reverse-mode autograd, broadcasting adjoint reduction, neural network layers, optimizers, and backpropagation work under the hood.
 
 🌐 **Live Interactive Web Sandbox:** **[https://tahaenasraoui-debug.github.io/tensile/](https://tahaenasraoui-debug.github.io/tensile/)**
+=======
+<p align="center">
+  <img src="assets/tensile-banner.jpg" alt="Tensile — A neural network playground" width="100%">
+</p>
 
----
+<p align="center">
+  <a href="https://tahaenasraoui-debug.github.io/tensile/">Live demo</a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/tahaenasraoui-debug/tensile">Source code</a>
+</p>
 
-## Repository Structure
+# Tensile — Neural Network Workbench
+>>>>>>> e0dcee5 (Redesign Tensile website and branding)
+
+Tensile is a small, interactive neural-network playground built to make the mechanics of learning easier to inspect. Change the data, adjust the model, train it in your browser, and watch its decision boundary respond.
+
+No framework, build step, backend, or runtime dependency is required. The model and visualizations run locally in the browser.
+
+## Explore
+
+- **Four datasets:** XOR, two moons, concentric circles, and a double spiral.
+- **Model architecture:** adjust the hidden layer from 2 to 16 neurons.
+- **Activation functions:** compare Tanh, ReLU, and Sigmoid.
+- **Optimization:** switch between Adam and SGD; tune the learning rate and batch size.
+- **Live visualizations:** inspect the decision surface, connection weights, and loss trace while the model trains.
+- **Training controls:** train continuously, advance one epoch at a time, regenerate data, or reset the weights.
+
+## Run locally
+
+Clone the repository, then open `index.html` in a browser. You can also start a simple local server from the project directory:
+
+```bash
+python -m http.server 8000
+```
+
+Visit `http://localhost:8000`.
+
+## How the model learns
+
+Tensile uses a compact multilayer perceptron with one hidden layer. Its training loop is implemented in plain JavaScript:
+
+1. **Forward pass** — inputs move through weighted connections and activation functions.
+2. **Backpropagation** — the binary cross-entropy loss is differentiated using the chain rule.
+3. **Optimization** — Adam or SGD updates the model's weights and biases.
+
+The decision surface is recalculated from the current weights. It is not a prerecorded animation.
+
+> **About the metrics:** loss and accuracy are calculated on the generated training dataset. There is no separate validation or test split, so the displayed accuracy should not be interpreted as a measure of generalization.
+
+## Project structure
 
 ```text
+<<<<<<< HEAD
 tensile/
 ├── index.html                    # GitHub Pages live interactive sandbox entrypoint
 ├── app.js                        # Hybrid client (FastAPI + in-browser Autograd fallback)
@@ -44,10 +92,25 @@ tensile/
 │   └── train_mnist_synthetic.py  # End-to-end 10-class MLP classification benchmark
 ├── pyproject.toml                # Project build configuration & dependencies
 └── README.md
+=======
+.
+├── assets/
+│   └── tensile-banner.jpg
+├── app.js
+├── favicon.svg
+├── index.html
+├── README.md
+└── styles.css
+>>>>>>> e0dcee5 (Redesign Tensile website and branding)
 ```
+
+## Deploy with GitHub Pages
+
+The site is static. In the repository's **Settings → Pages**, choose the branch and folder you want to publish (for example, the repository root), then save. Keep `index.html`, `styles.css`, `app.js`, `favicon.svg`, and the `assets/` folder together so their relative paths continue to work under the `/tensile/` project URL.
 
 ---
 
+<<<<<<< HEAD
 ## Download & Installation
 
 ### 1. Clone / Download the Repository
@@ -132,3 +195,6 @@ python examples/train_mnist_synthetic.py
   $$\mathcal{L} = \frac{1}{N} \sum_{i=1}^N \left( \log \sum_{j} e^{z_{i, j} - m_i} + m_i - z_{i, y_i} \right)$$
   with exact $\frac{1}{N}(\text{softmax}(Z) - Y)$ backward propagation.
 - **DAG Serialization (`to_graph_dict`):** Exports node IDs, operator labels, tensor shapes, forward value summaries (`min`, `max`, L2 `norm`), gradient norms, and reverse topological playback steps directly to JSON.
+=======
+<p align="center">Built to make the math visible.</p>
+>>>>>>> e0dcee5 (Redesign Tensile website and branding)
