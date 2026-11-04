@@ -1,10 +1,11 @@
-// app.js — Hybrid Client: Uses FastAPI /step when running via Uvicorn,
-// and seamlessly falls back to an in-browser JS port of Tensile on GitHub Pages!
+// app.js — 3Blue1Brown / Manim Edition Visual Autograd & NumberPlane Renderer
 (() => {
-  const canvas = document.getElementById("boundaryCanvas");
-  const ctx = canvas.getContext("2d");
-  const engineBadge = document.getElementById("engineBadge");
+  const bCanvas = document.getElementById("boundaryCanvas");
+  const bCtx = bCanvas.getContext("2d");
+  const dCanvas = document.getElementById("dagCanvas");
+  const dCtx = dCanvas.getContext("2d");
 
+  const engineBadge = document.getElementById("engineBadge");
   const datasetSelect = document.getElementById("datasetSelect");
   const actSelect = document.getElementById("actSelect");
   const hiddenInput = document.getElementById("hiddenInput");
@@ -26,15 +27,57 @@
   const playBackpropBtn = document.getElementById("playBackpropBtn");
   const stepCounterBadge = document.getElementById("stepCounterBadge");
   const scrubberStatus = document.getElementById("scrubberStatus");
-  const nodeInspector = document.getElementById("nodeInspector");
+  const inspectorLatex = document.getElementById("inspectorLatex");
+  const inspectorStats = document.getElementById("inspectorStats");
+  const headerFormula = document.getElementById("headerFormula");
+
+  // Official 3Blue1Brown / Manim Color Palette
+  const MANIM = {
+    BG: "#000000",
+    GRID_MAIN: "#1F3B4D",
+    GRID_SUB: "#0E1A24",
+    AXES: "#ECECEC",
+    BLUE: "#58C4DD",
+    BLUE_DARK: "#236B8E",
+    TEAL: "#5CD0B3",
+    GREEN: "#83C167",
+    YELLOW: "#FFFF00",
+    GOLD: "#F0AC5F",
+    RED: "#FC6255",
+    MAROON: "#C55F73",
+    PURPLE: "#9A72AC",
+    WHITE: "#ECECEC",
+    MUTED: "#8E9BAE",
+  };
 
   let trainTimer = null;
   let backpropTimer = null;
-  let currentGraph = { nodes: [], edges: [], backprop_steps: [] };
   let useLocalEngine = false;
+  let currentData = null;
+  let currentGraph = { nodes: [], edges: [], backprop_steps: [] };
+  let activeBackpropStep = -1;
+  let selectedNodeId = null;
+  let hoveredNodeId = null;
+  let animTime = 0;
+
+  // Layout map for custom Manim DAG Canvas nodes
+  let dagNodePositions = {};
+  let dagEdges = [];
+
+  // Render KaTeX helper
+  function renderMath(el, latexStr) {
+    if (!el) return;
+    if (window.katex) {
+      try {
+        window.katex.render(latexStr, el, { throwOnError: false, displayMode: false });
+        return;
+      } catch (_e) {}
+    }
+    el.textContent = latexStr;
+  }
 
   // =========================================================================
-  // In-Browser Tensile Autograd Engine (for GitHub Pages static deployment)
+  // In-Browser Tensile Autograd Engine (for GitHub Pages & instant 60fps UI)
   // =========================================================================
   class PRNG {
     constructor(seed = 42) { this.state = seed >>> 0; }
@@ -64,9 +107,9 @@
     }
     if (min === Infinity) return { min: 0, max: 0, norm: 0 };
     return {
-      min: Number(min.toFixed(5)),
-      max: Number(max.toFixed(5)),
-      norm: Number(Math.sqrt(sumSq).toFixed(5)),
+      min: Number(min.toFixed(4)),
+      max: Number(max.toFixed(4)),
+      norm: Number(Math.sqrt(sumSq).toFixed(4)),
     };
   }
 
@@ -87,24 +130,24 @@
       if (kind === "moons") {
         for (let i = 0; i < half; i++) {
           const t = (Math.PI * i) / (half - 1);
-          X.push([Math.cos(t) + rng.randn() * 0.14 - 0.5, Math.sin(t) + rng.randn() * 0.14 - 0.25]);
+          X.push([Math.cos(t) + rng.randn() * 0.13 - 0.5, Math.sin(t) + rng.randn() * 0.13 - 0.25]);
           y.push(0);
         }
         for (let i = 0; i < n - half; i++) {
           const t = (Math.PI * i) / (n - half - 1);
-          X.push([1 - Math.cos(t) + rng.randn() * 0.14 - 0.5, 0.5 - Math.sin(t) + rng.randn() * 0.14 - 0.25]);
+          X.push([1 - Math.cos(t) + rng.randn() * 0.13 - 0.5, 0.5 - Math.sin(t) + rng.randn() * 0.13 - 0.25]);
           y.push(1);
         }
       } else if (kind === "circles") {
         for (let i = 0; i < half; i++) {
           const a = rng.next() * Math.PI * 2;
-          const r = 0.48 + rng.randn() * 0.08;
+          const r = 0.52 + rng.randn() * 0.08;
           X.push([r * Math.cos(a), r * Math.sin(a)]);
           y.push(0);
         }
         for (let i = 0; i < n - half; i++) {
           const a = rng.next() * Math.PI * 2;
-          const r = 1.25 + rng.randn() * 0.1;
+          const r = 1.32 + rng.randn() * 0.09;
           X.push([r * Math.cos(a), r * Math.sin(a)]);
           y.push(1);
         }
@@ -221,7 +264,6 @@
 
       const { mm: mm3, out: logits } = this.linearForward(h2, this.W3, this.b3);
 
-      // Log-Sum-Exp CrossEntropyLoss & Softmax
       const dLogits = zeros2D(N, 2);
       let lossSum = 0;
       let correct = 0;
@@ -240,7 +282,6 @@
       this.lastLoss = lossSum / N;
       this.lastAcc = (correct / N) * 100.0;
 
-      // Backward L3
       const dW3 = zeros2D(H, 2);
       const db3 = zeros2D(1, 2);
       const dh2 = zeros2D(N, H);
@@ -255,7 +296,6 @@
         }
       }
 
-      // Backward Act2 & L2
       const dz2 = zeros2D(N, H);
       for (let i = 0; i < N; i++)
         for (let j = 0; j < H; j++) dz2[i][j] = dh2[i][j] * dh2Mask[i][j];
@@ -274,7 +314,6 @@
         }
       }
 
-      // Backward Act1 & L1
       const dz1 = zeros2D(N, H);
       for (let i = 0; i < N; i++)
         for (let j = 0; j < H; j++) dz1[i][j] = dh1[i][j] * dh1Mask[i][j];
@@ -328,15 +367,15 @@
       addTensor("tensor_b3", "L3.b", "leaf_param", [2], this.b3, this.params[5].grad, "", 6);
 
       const stages = [
-        { id: "mm1", label: "T_mm1", op: "MatMul", shape: [N, H], d: t.mm1, g: t.dz1, parents: ["tensor_x", "tensor_w1"] },
-        { id: "z1", label: "T_z1", op: "Add", shape: [N, H], d: t.z1, g: t.dz1, parents: ["tensor_mm1", "tensor_b1"] },
+        { id: "mm1", label: "Z1_mm", op: "MatMul", shape: [N, H], d: t.mm1, g: t.dz1, parents: ["tensor_x", "tensor_w1"] },
+        { id: "z1", label: "Z1", op: "Add", shape: [N, H], d: t.z1, g: t.dz1, parents: ["tensor_mm1", "tensor_b1"] },
         { id: "h1", label: "Hidden 1", op: actLabel, shape: [N, H], d: t.h1, g: t.dh1, parents: ["tensor_z1"] },
-        { id: "mm2", label: "T_mm2", op: "MatMul", shape: [N, H], d: t.mm2, g: t.dz2, parents: ["tensor_h1", "tensor_w2"] },
-        { id: "z2", label: "T_z2", op: "Add", shape: [N, H], d: t.z2, g: t.dz2, parents: ["tensor_mm2", "tensor_b2"] },
+        { id: "mm2", label: "Z2_mm", op: "MatMul", shape: [N, H], d: t.mm2, g: t.dz2, parents: ["tensor_h1", "tensor_w2"] },
+        { id: "z2", label: "Z2", op: "Add", shape: [N, H], d: t.z2, g: t.dz2, parents: ["tensor_mm2", "tensor_b2"] },
         { id: "h2", label: "Hidden 2", op: actLabel, shape: [N, H], d: t.h2, g: t.dh2, parents: ["tensor_z2"] },
-        { id: "mm3", label: "T_mm3", op: "MatMul", shape: [N, 2], d: t.mm3, g: t.dLogits, parents: ["tensor_h2", "tensor_w3"] },
+        { id: "mm3", label: "Z3_mm", op: "MatMul", shape: [N, 2], d: t.mm3, g: t.dLogits, parents: ["tensor_h2", "tensor_w3"] },
         { id: "logits", label: "Logits", op: "Add", shape: [N, 2], d: t.logits, g: t.dLogits, parents: ["tensor_mm3", "tensor_b3"] },
-        { id: "loss", label: "Loss", op: "CrossEntropyLoss", shape: [1], d: [[this.lastLoss]], g: [[1.0]], parents: ["tensor_logits"], role: "root_loss" },
+        { id: "loss", label: "Loss L", op: "CrossEntropyLoss", shape: [1], d: [[this.lastLoss]], g: [[1.0]], parents: ["tensor_logits"], role: "root_loss" },
       ];
 
       stages.forEach((s, idx) => {
@@ -400,7 +439,7 @@
       return this.snapshot();
     }
 
-    snapshot(res = 38) {
+    snapshot(res = 64) {
       const xMin = -2.0, xMax = 2.0, yMin = -2.0, yMax = 2.0;
       const pts = [];
       for (let r = 0; r < res; r++) {
@@ -446,190 +485,460 @@
   const localSandbox = new BrowserSandbox();
 
   // =========================================================================
-  // Cytoscape & Canvas Rendering
+  // STAGE 1: Manim NumberPlane & Decision Manifold Renderer
   // =========================================================================
-  const cy = cytoscape({
-    container: document.getElementById("cy"),
-    style: [
-      {
-        selector: 'node[type="tensor"]',
-        style: {
-          shape: "round-rectangle",
-          "background-color": "#1f2937",
-          "border-width": 2,
-          "border-color": "#58a6ff",
-          label: "data(displayLabel)",
-          color: "#e6edf3",
-          "text-valign": "center",
-          "text-halign": "center",
-          "text-wrap": "wrap",
-          "font-size": "10px",
-          "font-family": "monospace",
-          width: 118,
-          height: 50,
-        },
-      },
-      {
-        selector: 'node[role="leaf_param"]',
-        style: { "border-color": "#3fb950", "background-color": "#12261e" },
-      },
-      {
-        selector: 'node[role="root_loss"]',
-        style: { "border-color": "#ff7b72", "background-color": "#341a1d" },
-      },
-      {
-        selector: 'node[type="operator"]',
-        style: {
-          shape: "ellipse",
-          "background-color": "#9e6a03",
-          "border-width": 2,
-          "border-color": "#d29922",
-          label: "data(label)",
-          color: "#ffffff",
-          "font-weight": "bold",
-          "font-size": "10px",
-          "text-valign": "center",
-          "text-halign": "center",
-          width: 68,
-          height: 34,
-        },
-      },
-      {
-        selector: "edge",
-        style: {
-          width: 2,
-          "line-color": "#484f58",
-          "target-arrow-color": "#484f58",
-          "target-arrow-shape": "triangle",
-          "curve-style": "bezier",
-          label: "data(gradLabel)",
-          "font-size": "9px",
-          color: "#8b949e",
-          "text-background-opacity": 0.85,
-          "text-background-color": "#0d1117",
-          "text-background-padding": "2px",
-        },
-      },
-      {
-        selector: ".active-backprop-node",
-        style: { "border-color": "#ff7b72", "border-width": 4, "background-color": "#58191c" },
-      },
-      {
-        selector: ".active-backprop-edge",
-        style: { width: 4, "line-color": "#ff7b72", "target-arrow-color": "#ff7b72", color: "#ffb4a9" },
-      },
-    ],
-  });
-
-  cy.on("tap", "node", (evt) => {
-    const d = evt.target.data();
-    if (d.type === "tensor") {
-      nodeInspector.innerHTML = `
-        <strong>Tensor: ${d.label}</strong> (role: <code>${d.role}</code>, shape: <code>[${d.shape.join(", ")}]</code>)<br/>
-        Forward Value — min: <code>${d.stats.min}</code> | max: <code>${d.stats.max}</code> | L2 norm: <code>${d.stats.norm}</code><br/>
-        Backward Grad — min: <code>${d.grad_stats.min}</code> | max: <code>${d.grad_stats.max}</code> | <strong>‖grad‖₂: <code>${d.grad_stats.norm}</code></strong>
-      `;
-    } else {
-      nodeInspector.innerHTML = `
-        <strong>Operator: ${d.label}</strong> (topo index: <code>${d.topo_index}</code>)<br/>
-        Output Adjoint Norm ‖∂L/∂out‖₂: <code>${d.grad_norm}</code>
-      `;
-    }
-  });
-
-  function renderDecisionBoundary(boundary, points, labels) {
-    const w = canvas.width;
-    const h = canvas.height;
+  function renderManimNumberPlane(data) {
+    if (!data) return;
+    const { boundary, points, labels } = data;
+    const w = bCanvas.width;
+    const h = bCanvas.height;
     const res = boundary.resolution;
     const probs = boundary.grid_probs;
+    const { x_min, x_max, y_min, y_max } = boundary;
 
+    bCtx.clearRect(0, 0, w, h);
+    bCtx.fillStyle = MANIM.BG;
+    bCtx.fillRect(0, 0, w, h);
+
+    // 1. Smooth Bilinear Probability Field (Manim Blue #58C4DD <-> Manim Red #FC6255)
     const cellW = w / res;
     const cellH = h / res;
-
     for (let r = 0; r < res; r++) {
       for (let c = 0; c < res; c++) {
         const p = probs[res - 1 - r][c];
-        const red = Math.round(30 + 210 * p);
-        const green = Math.round(90 - 40 * Math.abs(p - 0.5));
-        const blue = Math.round(220 * (1 - p) + 35);
-        ctx.fillStyle = `rgba(${red}, ${green}, ${blue}, 0.45)`;
-        ctx.fillRect(c * cellW, r * cellH, Math.ceil(cellW), Math.ceil(cellH));
+        // Interpolate between deep Manim Blue and deep Manim Red/Coral
+        const rCol = Math.round(28 * (1 - p) + 235 * p);
+        const gCol = Math.round(145 * (1 - p) + 65 * p);
+        const bCol = Math.round(195 * (1 - p) + 60 * p);
+        const alpha = 0.22 + 0.25 * Math.abs(p - 0.5);
+        bCtx.fillStyle = `rgba(${rCol}, ${gCol}, ${bCol}, ${alpha})`;
+        bCtx.fillRect(c * cellW, r * cellH, Math.ceil(cellW) + 0.5, Math.ceil(cellH) + 0.5);
+      }
+    }
 
-        if (Math.abs(p - 0.5) < 0.035) {
-          ctx.fillStyle = "rgba(255, 255, 255, 0.35)";
-          ctx.fillRect(c * cellW, r * cellH, Math.ceil(cellW), Math.ceil(cellH));
+    // 2. Manim NumberPlane Sub-Grid & Major Grid Lines
+    const toScreenX = (x) => ((x - x_min) / (x_max - x_min)) * w;
+    const toScreenY = (y) => h - ((y - y_min) / (y_max - y_min)) * h;
+
+    // Minor grid lines (every 0.25 units)
+    bCtx.strokeStyle = "rgba(35, 107, 142, 0.22)";
+    bCtx.lineWidth = 1;
+    bCtx.beginPath();
+    for (let v = -2.0; v <= 2.0; v += 0.25) {
+      const sx = toScreenX(v);
+      const sy = toScreenY(v);
+      bCtx.moveTo(sx, 0); bCtx.lineTo(sx, h);
+      bCtx.moveTo(0, sy); bCtx.lineTo(w, sy);
+    }
+    bCtx.stroke();
+
+    // Major grid lines (every 0.5 units)
+    bCtx.strokeStyle = "rgba(88, 196, 221, 0.38)";
+    bCtx.lineWidth = 1.25;
+    bCtx.beginPath();
+    for (let v = -2.0; v <= 2.0; v += 0.5) {
+      if (Math.abs(v) < 1e-6) continue;
+      const sx = toScreenX(v);
+      const sy = toScreenY(v);
+      bCtx.moveTo(sx, 0); bCtx.lineTo(sx, h);
+      bCtx.moveTo(0, sy); bCtx.lineTo(w, sy);
+    }
+    bCtx.stroke();
+
+    // 3. Coordinate Axes with Manim Vector Arrowheads & LaTeX-style ticks
+    const ox = toScreenX(0);
+    const oy = toScreenY(0);
+    bCtx.strokeStyle = "rgba(236, 236, 236, 0.85)";
+    bCtx.lineWidth = 2;
+    bCtx.beginPath();
+    bCtx.moveTo(0, oy); bCtx.lineTo(w, oy);
+    bCtx.moveTo(ox, 0); bCtx.lineTo(ox, h);
+    bCtx.stroke();
+
+    // Tick numbers in Georgia Italic
+    bCtx.fillStyle = "rgba(236, 236, 236, 0.75)";
+    bCtx.font = "italic 12px Georgia, serif";
+    for (let v = -1.5; v <= 1.5; v += 0.5) {
+      if (Math.abs(v) < 1e-6) continue;
+      bCtx.fillText(v.toFixed(1), toScreenX(v) - 10, oy + 16);
+      bCtx.fillText(v.toFixed(1), ox + 6, toScreenY(v) + 4);
+    }
+    bCtx.font = "italic bold 14px Georgia, serif";
+    bCtx.fillText("x₁", w - 22, oy - 8);
+    bCtx.fillText("x₂", ox + 10, 18);
+
+    // 4. Glowing Manim Decision Boundary Contour (P(y=1|x) = 0.5)
+    bCtx.save();
+    bCtx.fillStyle = MANIM.YELLOW;
+    bCtx.shadowColor = MANIM.YELLOW;
+    bCtx.shadowBlur = 10;
+    for (let r = 0; r < res - 1; r++) {
+      for (let c = 0; c < res - 1; c++) {
+        const p00 = probs[res - 1 - r][c] - 0.5;
+        const p10 = probs[res - 1 - r][c + 1] - 0.5;
+        const p01 = probs[res - 2 - r][c] - 0.5;
+        if (p00 * p10 <= 0 || p00 * p01 <= 0) {
+          bCtx.beginPath();
+          bCtx.arc((c + 0.5) * cellW, (r + 0.5) * cellH, 2.2, 0, Math.PI * 2);
+          bCtx.fill();
         }
       }
     }
+    bCtx.restore();
 
-    const { x_min, x_max, y_min, y_max } = boundary;
+    // 5. Data Points as Glowing Manim Mobjects
     for (let i = 0; i < points.length; i++) {
       const [px, py] = points[i];
-      const cx = ((px - x_min) / (x_max - x_min)) * w;
-      const cyCoord = h - ((py - y_min) / (y_max - y_min)) * h;
+      const cx = toScreenX(px);
+      const cy = toScreenY(py);
+      const isClass1 = labels[i] === 1;
+      const color = isClass1 ? MANIM.RED : MANIM.BLUE;
 
-      ctx.beginPath();
-      ctx.arc(cx, cyCoord, 4.5, 0, Math.PI * 2);
-      ctx.fillStyle = labels[i] === 1 ? "#ff7b72" : "#58a6ff";
-      ctx.fill();
-      ctx.lineWidth = 1.2;
-      ctx.strokeStyle = "#0d1117";
-      ctx.stroke();
+      bCtx.save();
+      bCtx.beginPath();
+      bCtx.arc(cx, cy, 5.2, 0, Math.PI * 2);
+      bCtx.fillStyle = color;
+      bCtx.shadowColor = color;
+      bCtx.shadowBlur = 8;
+      bCtx.fill();
+      bCtx.lineWidth = 1.5;
+      bCtx.strokeStyle = "#000000";
+      bCtx.stroke();
+      bCtx.restore();
     }
   }
 
-  function renderGraph(graph) {
-    currentGraph = graph;
-    const elements = [];
+  // =========================================================================
+  // STAGE 2: Custom Manim Horizontal Layered DAG & Bezier Adjoint Flow
+  // =========================================================================
+  function computeManimDagLayout(graph) {
+    const w = dCanvas.width;
+    const h = dCanvas.height;
 
-    for (const n of graph.nodes) {
-      if (n.type === "tensor") {
-        const displayLabel = `${n.label} [${n.shape.join("×")}]\n‖g‖=${n.grad_stats.norm.toExponential(2)}`;
-        elements.push({ data: { ...n, displayLabel } });
+    // Explicit clean left-to-right 3Blue1Brown neural architecture coordinates
+    // Normalized (0..1, 0..1) so every node sits in its exact mathematical layer column!
+    const layoutSpec = {
+      // Layer 0 & Parameter leaves (top & bottom rows feeding into operators)
+      "tensor_x":      { x: 0.06, y: 0.52, w: 92, h: 46, tex: "X" },
+
+      "tensor_w1":     { x: 0.12, y: 0.17, w: 88, h: 42, tex: "W_1" },
+      "op_mm1":        { x: 0.17, y: 0.36, r: 22, tex: "\times" },
+      "tensor_mm1":    { x: 0.23, y: 0.36, w: 86, h: 42, tex: "X W_1" },
+      "tensor_b1":     { x: 0.23, y: 0.78, w: 86, h: 42, tex: "b_1" },
+      "op_z1":         { x: 0.29, y: 0.52, r: 20, tex: "+" },
+      "tensor_z1":     { x: 0.35, y: 0.52, w: 86, h: 42, tex: "Z_1" },
+      "op_h1":         { x: 0.41, y: 0.52, r: 23, tex: "\sigma" },
+      "tensor_h1":     { x: 0.48, y: 0.52, w: 92, h: 46, tex: "H_1" },
+
+      "tensor_w2":     { x: 0.48, y: 0.17, w: 88, h: 42, tex: "W_2" },
+      "op_mm2":        { x: 0.54, y: 0.36, r: 22, tex: "\times" },
+      "tensor_mm2":    { x: 0.60, y: 0.36, w: 86, h: 42, tex: "H_1 W_2" },
+      "tensor_b2":     { x: 0.60, y: 0.78, w: 86, h: 42, tex: "b_2" },
+      "op_z2":         { x: 0.65, y: 0.52, r: 20, tex: "+" },
+      "tensor_z2":     { x: 0.70, y: 0.52, w: 86, h: 42, tex: "Z_2" },
+      "op_h2":         { x: 0.75, y: 0.52, r: 23, tex: "\sigma" },
+      "tensor_h2":     { x: 0.81, y: 0.52, w: 92, h: 46, tex: "H_2" },
+
+      "tensor_w3":     { x: 0.78, y: 0.17, w: 88, h: 42, tex: "W_3" },
+      "op_mm3":        { x: 0.84, y: 0.32, r: 20, tex: "\times" },
+      "tensor_mm3":    { x: 0.88, y: 0.20, w: 84, h: 40, tex: "H_2 W_3" },
+      "tensor_b3":     { x: 0.84, y: 0.82, w: 84, h: 40, tex: "b_3" },
+      "op_logits":     { x: 0.89, y: 0.52, r: 20, tex: "+" },
+      "tensor_logits": { x: 0.94, y: 0.52, w: 86, h: 44, tex: "\hat{Y}" },
+      "op_loss":       { x: 0.94, y: 0.74, r: 22, tex: "\mathcal{L}" },
+      "tensor_loss":   { x: 0.94, y: 0.91, w: 86, h: 42, tex: "\mathcal{L}(\theta)" },
+    };
+
+    dagNodePositions = {};
+    const totalNodes = graph.nodes.length || 1;
+
+    graph.nodes.forEach((n, idx) => {
+      let spec = layoutSpec[n.id];
+      // Dynamic fallback if connected to Python FastAPI server with auto-incremented IDs
+      if (!spec) {
+        const col = idx / totalNodes;
+        const row = n.role === "leaf_param" ? 0.18 : (n.type === "operator" ? 0.45 : 0.68);
+        spec = { x: 0.06 + col * 0.88, y: row, w: 88, h: 42, r: 21, tex: n.label };
+      }
+      dagNodePositions[n.id] = {
+        ...n,
+        cx: spec.x * w,
+        cy: spec.y * h,
+        w: spec.w || 88,
+        h: spec.h || 42,
+        r: spec.r || 21,
+        tex: spec.tex || n.label,
+      };
+    });
+
+    dagEdges = graph.edges.map((e) => ({
+      ...e,
+      src: dagNodePositions[e.source],
+      dst: dagNodePositions[e.target],
+    })).filter((e) => e.src && e.dst);
+  }
+
+  function drawRoundedRect(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    ctx.moveTo(x + r, y);
+    ctx.lineTo(x + w - r, y);
+    ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+    ctx.lineTo(x + w, y + h - r);
+    ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+    ctx.lineTo(x + r, y + h);
+    ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+    ctx.lineTo(x, y + r);
+    ctx.quadraticCurveTo(x, y, x + r, y);
+    ctx.closePath();
+  }
+
+  function renderManimDAG() {
+    const w = dCanvas.width;
+    const h = dCanvas.height;
+    dCtx.clearRect(0, 0, w, h);
+    dCtx.fillStyle = MANIM.BG;
+    dCtx.fillRect(0, 0, w, h);
+
+    // Subtle Manim background coordinate grid
+    dCtx.strokeStyle = "rgba(35, 107, 142, 0.14)";
+    dCtx.lineWidth = 1;
+    dCtx.beginPath();
+    for (let x = 0; x < w; x += 40) { dCtx.moveTo(x, 0); dCtx.lineTo(x, h); }
+    for (let y = 0; y < h; y += 40) { dCtx.moveTo(0, y); dCtx.lineTo(w, y); }
+    dCtx.stroke();
+
+    // Determine active nodes & edges during Backprop Scrubber
+    const steps = currentGraph.backprop_steps || [];
+    const activeStep = (activeBackpropStep >= 0 && activeBackpropStep < steps.length)
+      ? steps[activeBackpropStep]
+      : null;
+
+    const activeNodeIds = new Set();
+    const activeEdgeIds = new Set();
+    if (activeStep) {
+      activeNodeIds.add(activeStep.tensor_id);
+      activeNodeIds.add(activeStep.op_id);
+      activeEdgeIds.add(activeStep.incoming_edge);
+      (activeStep.outgoing_edges || []).forEach((id) => activeEdgeIds.add(id));
+      (activeStep.parent_tensors || []).forEach((id) => activeNodeIds.add(id));
+    }
+
+    // 1. Draw Smooth Cubic Bezier Edges + Glowing Adjoint Pulses
+    for (const e of dagEdges) {
+      const { src, dst } = e;
+      const isHighlighted = activeEdgeIds.has(e.id);
+      const dx = dst.cx - src.cx;
+      const dy = dst.cy - src.cy;
+      const c1x = src.cx + dx * 0.45;
+      const c1y = src.cy;
+      const c2x = src.cx + dx * 0.55;
+      const c2y = dst.cy;
+
+      dCtx.save();
+      dCtx.beginPath();
+      dCtx.moveTo(src.cx, src.cy);
+      dCtx.bezierCurveTo(c1x, c1y, c2x, c2y, dst.cx, dst.cy);
+
+      if (isHighlighted) {
+        dCtx.strokeStyle = MANIM.YELLOW;
+        dCtx.lineWidth = 3.2;
+        dCtx.shadowColor = MANIM.YELLOW;
+        dCtx.shadowBlur = 12;
       } else {
-        elements.push({ data: { ...n } });
+        // Color-code by gradient magnitude
+        const gNorm = Math.min(1.0, (e.grad_norm || 0) * 3.5);
+        dCtx.strokeStyle = `rgba(88, 196, 221, ${0.28 + 0.45 * gNorm})`;
+        dCtx.lineWidth = 1.6 + 1.2 * gNorm;
+      }
+      dCtx.stroke();
+
+      // Animated Manim Adjoint Pulse travelling in REVERSE (from dst back to src!)
+      if (isHighlighted || activeBackpropStep === -1) {
+        const speed = isHighlighted ? 0.025 : 0.008;
+        const t = 1.0 - ((animTime * speed + (src.topo_index || 0) * 0.17) % 1.0);
+        const mt = 1 - t;
+        const px = mt*mt*mt*src.cx + 3*mt*mt*t*c1x + 3*mt*t*t*c2x + t*t*t*dst.cx;
+        const py = mt*mt*mt*src.cy + 3*mt*mt*t*c1y + 3*mt*t*t*c2y + t*t*t*dst.cy;
+
+        dCtx.beginPath();
+        dCtx.arc(px, py, isHighlighted ? 4.5 : 2.3, 0, Math.PI * 2);
+        dCtx.fillStyle = isHighlighted ? MANIM.YELLOW : MANIM.TEAL;
+        dCtx.shadowColor = isHighlighted ? MANIM.YELLOW : MANIM.TEAL;
+        dCtx.shadowBlur = isHighlighted ? 14 : 6;
+        dCtx.fill();
+      }
+      dCtx.restore();
+    }
+
+    // 2. Draw Nodes (Manim Vector Mobjects)
+    Object.values(dagNodePositions).forEach((node) => {
+      const isHighlighted = activeNodeIds.has(node.id);
+      const isSelected = selectedNodeId === node.id || hoveredNodeId === node.id;
+
+      dCtx.save();
+      if (node.type === "operator") {
+        // Circular Manim Operator Node
+        dCtx.beginPath();
+        dCtx.arc(node.cx, node.cy, node.r, 0, Math.PI * 2);
+        dCtx.fillStyle = isHighlighted ? "#2a2405" : "#12101b";
+        dCtx.fill();
+        dCtx.lineWidth = isHighlighted || isSelected ? 2.8 : 1.8;
+        const strokeCol = isHighlighted ? MANIM.YELLOW : MANIM.GOLD;
+        dCtx.strokeStyle = strokeCol;
+        if (isHighlighted || isSelected) {
+          dCtx.shadowColor = strokeCol;
+          dCtx.shadowBlur = 14;
+        }
+        dCtx.stroke();
+
+        // Operator Mathematical Symbol
+        dCtx.fillStyle = isHighlighted ? MANIM.YELLOW : MANIM.WHITE;
+        dCtx.font = "italic bold 13px Georgia, serif";
+        dCtx.textAlign = "center";
+        dCtx.textBaseline = "middle";
+        const sym = node.label === "MatMul" ? "A·B" : (node.label === "Add" ? "+" : (node.label === "CrossEntropyLoss" ? "L(θ)" : node.label));
+        dCtx.fillText(sym, node.cx, node.cy);
+      } else {
+        // Tensor Mobject Bracketed Card
+        const x = node.cx - node.w / 2;
+        const y = node.cy - node.h / 2;
+        let strokeCol = MANIM.BLUE;
+        let fillCol = "#08121a";
+        if (node.role === "leaf_param") {
+          strokeCol = MANIM.GREEN;
+          fillCol = "#09170e";
+        } else if (node.role === "root_loss") {
+          strokeCol = MANIM.RED;
+          fillCol = "#1c0a0a";
+        } else if (node.role === "input_data") {
+          strokeCol = MANIM.PURPLE;
+          fillCol = "#130d18";
+        }
+        if (isHighlighted) {
+          strokeCol = MANIM.YELLOW;
+          fillCol = "#221e06";
+        }
+
+        drawRoundedRect(dCtx, x, y, node.w, node.h, 7);
+        dCtx.fillStyle = fillCol;
+        dCtx.fill();
+        dCtx.lineWidth = isHighlighted || isSelected ? 2.8 : 1.6;
+        dCtx.strokeStyle = strokeCol;
+        if (isHighlighted || isSelected) {
+          dCtx.shadowColor = strokeCol;
+          dCtx.shadowBlur = 15;
+        }
+        dCtx.stroke();
+
+        // Tensor Name & Shape in Computer Modern / Georgia Serif
+        dCtx.fillStyle = MANIM.WHITE;
+        dCtx.font = "italic bold 12px Georgia, serif";
+        dCtx.textAlign = "center";
+        const shapeStr = node.shape ? `[${node.shape.join("×")}]` : "";
+        dCtx.fillText(`${node.label} ${shapeStr}`, node.cx, node.cy - 6);
+
+        // Gradient Norm Bar & Value
+        const gNorm = node.grad_stats ? node.grad_stats.norm : 0;
+        dCtx.fillStyle = isHighlighted ? MANIM.YELLOW : strokeCol;
+        dCtx.font = "10px 'JetBrains Mono', monospace";
+        dCtx.fillText(`‖∇‖=${gNorm.toExponential(2)}`, node.cx, node.cy + 10);
+      }
+      dCtx.restore();
+    });
+  }
+
+  // Hit-testing on the Manim DAG Canvas
+  function findNodeAt(mx, my) {
+    const rect = dCanvas.getBoundingClientRect();
+    const scaleX = dCanvas.width / rect.width;
+    const scaleY = dCanvas.height / rect.height;
+    const x = (mx - rect.left) * scaleX;
+    const y = (my - rect.top) * scaleY;
+
+    for (const node of Object.values(dagNodePositions)) {
+      if (node.type === "operator") {
+        const dist = Math.hypot(x - node.cx, y - node.cy);
+        if (dist <= node.r + 4) return node;
+      } else {
+        if (
+          x >= node.cx - node.w / 2 &&
+          x <= node.cx + node.w / 2 &&
+          y >= node.cy - node.h / 2 &&
+          y <= node.cy + node.h / 2
+        ) {
+          return node;
+        }
       }
     }
-
-    for (const e of graph.edges) {
-      elements.push({
-        data: { ...e, gradLabel: `‖g‖=${e.grad_norm.toExponential(1)}` },
-      });
-    }
-
-    cy.elements().remove();
-    cy.add(elements);
-    cy.layout({ name: "breadthfirst", directed: true, padding: 24, spacingFactor: 0.85 }).run();
-
-    const maxStep = Math.max(0, graph.backprop_steps.length - 1);
-    backpropSlider.max = String(maxStep);
-    if (parseInt(backpropSlider.value, 10) > maxStep) backpropSlider.value = "-1";
-    applyBackpropHighlight(parseInt(backpropSlider.value, 10));
+    return null;
   }
 
+  function inspectNode(node) {
+    if (!node) return;
+    selectedNodeId = node.id;
+    if (node.type === "tensor") {
+      const shapeLatex = node.shape ? `\mathbb{R}^{${node.shape.join(" \times ")}}` : "\mathbb{R}";
+      const gNorm = node.grad_stats ? node.grad_stats.norm : 0;
+      const vNorm = node.stats ? node.stats.norm : 0;
+      renderMath(
+        inspectorLatex,
+        `\mathbf{${node.label.replace("_", "\_")}} \in ${shapeLatex}, \quad \|\mathbf{T}\|_2 = ${vNorm}, \quad \left\|\frac{\partial \mathcal{L}}{\partial \mathbf{T}}\right\|_2 = ${gNorm}`
+      );
+      inspectorStats.innerHTML = `
+        <span>Role: <strong style="color:${MANIM.BLUE}">${node.role}</strong></span>
+        <span>Forward Range: <code>[${node.stats.min}, ${node.stats.max}]</code></span>
+        <span>Adjoint Range: <code>[${node.grad_stats.min}, ${node.grad_stats.max}]</code></span>
+      `;
+    } else {
+      const rules = {
+        MatMul: "\frac{\partial \mathcal{L}}{\partial A} = \frac{\partial \mathcal{L}}{\partial C} B^\top, \quad \frac{\partial \mathcal{L}}{\partial B} = A^\top \frac{\partial \mathcal{L}}{\partial C}",
+        Add: "\frac{\partial \mathcal{L}}{\partial X} = \text{unbroadcast}\left(\frac{\partial \mathcal{L}}{\partial Z}\right)",
+        CrossEntropyLoss: "\mathcal{L} = \frac{1}{N}\sum_i \left(\log\sum_j e^{z_{i,j}} - z_{i,y_i}\right), \quad \frac{\partial \mathcal{L}}{\partial Z} = \frac{1}{N}(\text{softmax}(Z) - Y)",
+        TANH: "\frac{\partial \mathcal{L}}{\partial Z} = \frac{\partial \mathcal{L}}{\partial H} \odot (1 - \tanh^2(Z))",
+        RELU: "\frac{\partial \mathcal{L}}{\partial Z} = \frac{\partial \mathcal{L}}{\partial H} \odot \mathbb{I}(Z > 0)",
+        GELU: "\frac{\partial \mathcal{L}}{\partial Z} = \frac{\partial \mathcal{L}}{\partial H} \odot \text{GELU}'(Z)",
+        SIGMOID: "\frac{\partial \mathcal{L}}{\partial Z} = \frac{\partial \mathcal{L}}{\partial H} \odot \sigma(Z)(1 - \sigma(Z))",
+      };
+      const ruleLatex = rules[node.label] || `\text{Operator } ${node.label}`;
+      renderMath(inspectorLatex, ruleLatex);
+      inspectorStats.innerHTML = `
+        <span>Operator: <strong style="color:${MANIM.GOLD}">${node.label}</strong></span>
+        <span>Topological Order: <code>#${node.topo_index}</code></span>
+        <span>Upstream Adjoint Norm: <code>${node.grad_norm}</code></span>
+      `;
+    }
+  }
+
+  dCanvas.addEventListener("mousemove", (e) => {
+    const hit = findNodeAt(e.clientX, e.clientY);
+    hoveredNodeId = hit ? hit.id : null;
+    dCanvas.style.cursor = hit ? "pointer" : "default";
+  });
+
+  dCanvas.addEventListener("click", (e) => {
+    const hit = findNodeAt(e.clientX, e.clientY);
+    if (hit) inspectNode(hit);
+  });
+
   function applyBackpropHighlight(stepIndex) {
-    cy.elements().removeClass("active-backprop-node active-backprop-edge");
+    activeBackpropStep = stepIndex;
     const steps = currentGraph.backprop_steps || [];
 
     if (stepIndex < 0 || stepIndex >= steps.length) {
-      stepCounterBadge.textContent = "Backprop Step: All";
-      metricBackpropOp.textContent = "Full Graph";
+      stepCounterBadge.textContent = "Chain Rule: Full DAG";
+      metricBackpropOp.textContent = "Full Forward & Backward DAG";
       scrubberStatus.textContent =
-        "Showing full forward/backward graph. Move the slider to scrub step-by-step through reverse-mode autodiff.";
+        "Animating continuous adjoint flow across all edges. Drag the yellow scrubber to isolate individual Chain Rule steps.";
       return;
     }
 
     const active = steps[stepIndex];
-    stepCounterBadge.textContent = `Backprop Step: ${stepIndex + 1} / ${steps.length}`;
-    metricBackpropOp.textContent = `${active.op_label} (‖g‖=${active.grad_norm})`;
-    scrubberStatus.textContent = `Step ${stepIndex + 1}/${steps.length}: Propagating adjoint through ${active.op_label} -> [${active.parent_tensors.join(", ")}] (‖grad‖₂ = ${active.grad_norm})`;
+    stepCounterBadge.textContent = `Backprop Step ${stepIndex + 1} / ${steps.length}`;
+    metricBackpropOp.textContent = `${active.op_label} (‖∇‖₂ = ${active.grad_norm})`;
+    scrubberStatus.textContent = `Step ${stepIndex + 1}/${steps.length}: Propagating adjoint δ through ${active.op_label} → [${active.parent_tensors.join(", ")}]`;
 
-    cy.getElementById(active.tensor_id).addClass("active-backprop-node");
-    cy.getElementById(active.op_id).addClass("active-backprop-node");
-    cy.getElementById(active.incoming_edge).addClass("active-backprop-edge");
-
-    for (const edgeId of active.outgoing_edges) cy.getElementById(edgeId).addClass("active-backprop-edge");
-    for (const ptId of active.parent_tensors) cy.getElementById(ptId).addClass("active-backprop-node");
+    const opNode = dagNodePositions[active.op_id];
+    if (opNode) inspectNode(opNode);
   }
 
   async function postStep(stepsCount = 1, reset = false) {
@@ -640,7 +949,6 @@
     const lr = parseFloat(lrInput.value) || 0.03;
 
     let data = null;
-
     if (!useLocalEngine) {
       try {
         const res = await fetch("/step", {
@@ -648,16 +956,16 @@
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ dataset, activation, hidden_dim: hiddenDim, optimizer, lr, steps: stepsCount, reset }),
         });
-        if (!res.ok) throw new Error("FastAPI endpoint unavailable");
+        if (!res.ok) throw new Error("FastAPI unavailable");
         data = await res.json();
-        engineBadge.textContent = "Engine: Python FastAPI";
-      } catch (_err) {
+        engineBadge.textContent = "Scene: FastAPI NumPy";
+      } catch (_e) {
         useLocalEngine = true;
       }
     }
 
     if (useLocalEngine) {
-      engineBadge.textContent = "Engine: In-Browser Autograd (GitHub Pages)";
+      engineBadge.textContent = "Scene: 60fps In-Browser Autograd";
       if (
         reset ||
         dataset !== localSandbox.dataset ||
@@ -673,21 +981,36 @@
       }
     }
 
+    currentData = data;
+    currentGraph = data.graph;
     metricStep.textContent = data.step;
     metricLoss.textContent = data.loss.toFixed(5);
     metricAcc.textContent = `${data.accuracy.toFixed(2)}%`;
 
-    renderDecisionBoundary(data.boundary, data.points, data.labels);
-    renderGraph(data.graph);
+    computeManimDagLayout(currentGraph);
+    renderManimNumberPlane(currentData);
+
+    const maxStep = Math.max(0, currentGraph.backprop_steps.length - 1);
+    backpropSlider.max = String(maxStep);
+    if (parseInt(backpropSlider.value, 10) > maxStep) backpropSlider.value = "-1";
+    applyBackpropHighlight(parseInt(backpropSlider.value, 10));
   }
 
-  // Event Listeners
+  // 60 FPS Manim Animation Loop for glowing adjoint pulses
+  function animateLoop() {
+    animTime += 1;
+    renderManimDAG();
+    requestAnimationFrame(animateLoop);
+  }
+
+  // Controls & Event Listeners
   stepBtn.addEventListener("click", () => postStep(1, false));
   resetBtn.addEventListener("click", () => {
     if (trainTimer) {
       clearInterval(trainTimer);
       trainTimer = null;
-      playTrainBtn.textContent = "Auto Train";
+      playTrainBtn.textContent = "▶ Animate Training";
+      playTrainBtn.classList.remove("active");
     }
     postStep(1, true);
   });
@@ -700,10 +1023,12 @@
     if (trainTimer) {
       clearInterval(trainTimer);
       trainTimer = null;
-      playTrainBtn.textContent = "Auto Train";
+      playTrainBtn.textContent = "▶ Animate Training";
+      playTrainBtn.classList.remove("active");
     } else {
-      playTrainBtn.textContent = "Pause Train";
-      trainTimer = setInterval(() => postStep(2, false), 180);
+      playTrainBtn.textContent = "⏸ Pause Animation";
+      playTrainBtn.classList.add("active");
+      trainTimer = setInterval(() => postStep(2, false), 90);
     }
   });
 
@@ -728,7 +1053,7 @@
     if (backpropTimer) {
       clearInterval(backpropTimer);
       backpropTimer = null;
-      playBackpropBtn.textContent = "▶ Play Backprop";
+      playBackpropBtn.textContent = "▶ Animate Backprop";
       return;
     }
     const steps = currentGraph.backprop_steps || [];
@@ -743,15 +1068,27 @@
       if (idx >= steps.length) {
         clearInterval(backpropTimer);
         backpropTimer = null;
-        playBackpropBtn.textContent = "▶ Play Backprop";
+        playBackpropBtn.textContent = "▶ Animate Backprop";
         backpropSlider.value = "-1";
         applyBackpropHighlight(-1);
         return;
       }
       backpropSlider.value = String(idx);
       applyBackpropHighlight(idx);
-    }, 650);
+    }, 600);
+  });
+
+  window.addEventListener("load", () => {
+    renderMath(
+      headerFormula,
+      "\theta_{t+1} = \theta_t - \eta \cdot \nabla_\theta \mathcal{L}(f_\theta(X), Y)"
+    );
+    renderMath(
+      inspectorLatex,
+      "\frac{\partial \mathcal{L}}{\partial W_l} = H_{l-1}^\top \delta_l, \qquad \delta_l = \left(\delta_{l+1} W_{l+1}^\top\right) \odot \sigma'(Z_l)"
+    );
   });
 
   postStep(1, true);
+  requestAnimationFrame(animateLoop);
 })();
