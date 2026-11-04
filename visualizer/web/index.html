@@ -1,0 +1,219 @@
+<!-- visualizer/web/index.html -->
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Tensile — Autograd DAG & 2D Decision Boundary Inspector</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+  <style>
+    :root {
+      --bg: #0d1117;
+      --panel: #161b22;
+      --border: #30363d;
+      --text: #e6edf3;
+      --muted: #8b949e;
+      --accent: #58a6ff;
+      --accent-hot: #ff7b72;
+      --op-node: #d29922;
+      --param-node: #238636;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
+      background: var(--bg);
+      color: var(--text);
+      display: flex;
+      flex-direction: column;
+      min-height: 100vh;
+    }
+    header {
+      padding: 12px 20px;
+      background: var(--panel);
+      border-bottom: 1px solid var(--border);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    header h1 { font-size: 1.05rem; letter-spacing: 0.4px; color: var(--accent); }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 10px;
+    }
+    label { font-size: 0.78rem; color: var(--muted); display: flex; align-items: center; gap: 5px; }
+    select, input[type="number"], button {
+      background: #21262d;
+      color: var(--text);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 0.82rem;
+      cursor: pointer;
+    }
+    button.primary { background: #1f6feb; border-color: #388bfd; font-weight: 600; }
+    button.primary:hover { background: #388bfd; }
+    button.danger { background: #da3633; border-color: #f85149; }
+    .metrics-bar {
+      display: flex;
+      gap: 18px;
+      font-size: 0.85rem;
+      background: #090d13;
+      padding: 8px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .metric span { color: var(--accent); font-weight: 700; }
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 420px 1fr;
+      gap: 14px;
+      padding: 14px;
+    }
+    .card {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+    .card-header {
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      font-size: 0.85rem;
+      font-weight: 600;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    #boundaryCanvas {
+      width: 100%;
+      aspect-ratio: 1 / 1;
+      display: block;
+      background: #090d13;
+    }
+    #cy {
+      width: 100%;
+      flex: 1;
+      min-height: 430px;
+      background: #090d13;
+    }
+    .scrubber-panel {
+      padding: 12px 14px;
+      border-top: 1px solid var(--border);
+      background: #11161d;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+    .scrubber-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    #backpropSlider { flex: 1; accent-color: var(--accent-hot); }
+    .node-inspector {
+      padding: 10px 14px;
+      border-top: 1px solid var(--border);
+      font-size: 0.78rem;
+      line-height: 1.5;
+      color: var(--muted);
+      min-height: 76px;
+    }
+    .badge {
+      padding: 2px 7px;
+      border-radius: 4px;
+      font-size: 0.72rem;
+      background: #21262d;
+      color: var(--accent-hot);
+    }
+    @media (max-width: 960px) {
+      main { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>⚡ TENSILE // Autograd DAG & 2D Neural Sandbox</h1>
+    <div class="controls">
+      <label>Dataset
+        <select id="datasetSelect">
+          <option value="moons">Moons</option>
+          <option value="circles">Circles</option>
+          <option value="xor">XOR</option>
+        </select>
+      </label>
+      <label>Activation
+        <select id="actSelect">
+          <option value="tanh">Tanh</option>
+          <option value="relu">ReLU</option>
+          <option value="gelu">GELU</option>
+          <option value="sigmoid">Sigmoid</option>
+        </select>
+      </label>
+      <label>Hidden
+        <input id="hiddenInput" type="number" value="16" min="4" max="64" step="4" style="width:62px;" />
+      </label>
+      <label>Optimizer
+        <select id="optSelect">
+          <option value="adam">Adam</option>
+          <option value="sgd">SGD+Mom</option>
+        </select>
+      </label>
+      <label>LR
+        <input id="lrInput" type="number" value="0.03" min="0.001" max="0.5" step="0.005" style="width:74px;" />
+      </label>
+      <button id="stepBtn" class="primary">Step (+1)</button>
+      <button id="playTrainBtn">Auto Train</button>
+      <button id="resetBtn" class="danger">Reset</button>
+    </div>
+  </header>
+
+  <div class="metrics-bar">
+    <div class="metric">Step: <span id="metricStep">0</span></div>
+    <div class="metric">Loss: <span id="metricLoss">0.00000</span></div>
+    <div class="metric">Accuracy: <span id="metricAcc">0.00%</span></div>
+    <div class="metric">Active Backprop Op: <span id="metricBackpropOp">Full Graph</span></div>
+  </div>
+
+  <main>
+    <!-- Canvas 1: 2D Scatter & Live Decision Boundary Contour Map -->
+    <section class="card">
+      <div class="card-header">
+        <span>2D Decision Boundary Contour</span>
+        <span class="badge">Class 0 (Blue) vs Class 1 (Coral)</span>
+      </div>
+      <canvas id="boundaryCanvas" width="420" height="420"></canvas>
+      <div class="node-inspector" id="nodeInspector">
+        Click any Tensor (rectangle) or Operator (pill) node in the computational graph to inspect its shape, forward value statistics, and exact gradient norm.
+      </div>
+    </section>
+
+    <!-- Canvas 2: Directed Computational Graph & Backprop Playback Scrubber -->
+    <section class="card">
+      <div class="card-header">
+        <span>Dynamic Computation Graph (DAG)</span>
+        <span class="badge" id="stepCounterBadge">Backprop Step: All</span>
+      </div>
+      <div id="cy"></div>
+      <div class="scrubber-panel">
+        <div class="scrubber-row">
+          <button id="prevBackpropBtn">◀ Prev Op</button>
+          <button id="playBackpropBtn">▶ Play Backprop</button>
+          <button id="nextBackpropBtn">Next Op ▶</button>
+          <input id="backpropSlider" type="range" min="-1" max="0" value="-1" />
+        </div>
+        <div style="font-size: 0.76rem; color: var(--muted);" id="scrubberStatus">
+          Drag scrubber to step through reverse-mode autodiff in reverse topological order.
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
