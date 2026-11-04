@@ -1,101 +1,67 @@
+<p align="center">
+  <img src="assets/tensile-banner.jpg" alt="Tensile — A neural network playground" width="100%">
+</p>
 
-## Tensile
+<p align="center">
+  <a href="https://tahaenasraoui-debug.github.io/tensile/">Live demo</a>
+  &nbsp;·&nbsp;
+  <a href="https://github.com/tahaenasraoui-debug/tensile">Source code</a>
+</p>
 
-**Tensile** is a clean, readable, and educational reverse-mode automatic differentiation and deep learning framework built entirely from scratch using **pure NumPy** (Python 3.10+). It features zero external heavy ML frameworks (no PyTorch, TensorFlow, or JAX), offering complete algorithmic transparency into how tensors, autograd engines, neural network layers, optimizers, and dataloaders work under the hood.
+# Tensile — Neural Network Workbench
 
----
+Tensile is a small, interactive neural-network playground built to make the mechanics of learning easier to inspect. Change the data, adjust the model, train it in your browser, and watch its decision boundary respond.
 
-## Repository Structure
+No framework, build step, backend, or runtime dependency is required. The model and visualizations run locally in the browser.
+
+## Explore
+
+- **Four datasets:** XOR, two moons, concentric circles, and a double spiral.
+- **Model architecture:** adjust the hidden layer from 2 to 16 neurons.
+- **Activation functions:** compare Tanh, ReLU, and Sigmoid.
+- **Optimization:** switch between Adam and SGD; tune the learning rate and batch size.
+- **Live visualizations:** inspect the decision surface, connection weights, and loss trace while the model trains.
+- **Training controls:** train continuously, advance one epoch at a time, regenerate data, or reset the weights.
+
+## Run locally
+
+Clone the repository, then open `index.html` in a browser. You can also start a simple local server from the project directory:
+
+```bash
+python -m http.server 8000
+```
+
+Visit `http://localhost:8000`.
+
+## How the model learns
+
+Tensile uses a compact multilayer perceptron with one hidden layer. Its training loop is implemented in plain JavaScript:
+
+1. **Forward pass** — inputs move through weighted connections and activation functions.
+2. **Backpropagation** — the binary cross-entropy loss is differentiated using the chain rule.
+3. **Optimization** — Adam or SGD updates the model's weights and biases.
+
+The decision surface is recalculated from the current weights. It is not a prerecorded animation.
+
+> **About the metrics:** loss and accuracy are calculated on the generated training dataset. There is no separate validation or test split, so the displayed accuracy should not be interpreted as a measure of generalization.
+
+## Project structure
 
 ```text
-tensile/
-├── tensile/
-│   ├── __init__.py           # Top-level package exports
-│   ├── tensor.py             # Core Tensor class & reverse-mode autograd engine
-│   ├── nn/
-│   │   ├── __init__.py       # Neural network module exports
-│   │   ├── module.py         # Base Module & parameter collector
-│   │   ├── layers.py         # Linear, ReLU, Softmax, Sequential layers
-│   │   └── losses.py         # MSE loss & numerically stable cross-entropy
-│   ├── optim/
-│   │   ├── __init__.py       # Optimizer exports
-│   │   └── optimizer.py      # SGD (with momentum) & Adam optimizers
-│   ├── data/
-│   │   ├── __init__.py       # Data pipeline exports
-│   │   └── dataloader.py     # Dataset, TensorDataset, & DataLoader batching
-│   └── utils/
-│       ├── __init__.py       # Utility exports
-│       └── vis.py            # Graphviz computation graph visualization
-├── tests/
-│   └── test_gradcheck.py     # Finite-difference numerical gradient verification suite
-├── examples/
-│   └── train_mnist_synthetic.py  # End-to-end multi-class classification demo
-├── pyproject.toml            # Project build configuration & metadata
-└── README.md
-
+.
+├── assets/
+│   └── tensile-banner.jpg
+├── app.js
+├── favicon.svg
+├── index.html
+├── README.md
+└── styles.css
 ```
+
+## Deploy with GitHub Pages
+
+The site is static. In the repository's **Settings → Pages**, choose the branch and folder you want to publish (for example, the repository root), then save. Keep `index.html`, `styles.css`, `app.js`, `favicon.svg`, and the `assets/` folder together so their relative paths continue to work under the `/tensile/` project URL.
 
 ---
 
-## Getting Started & Installation
-
-### 1. Clone the Repository
-
-```bash
-git clone [https://github.com/tahaenasraoui-debug/tensile.git](https://github.com/tahaenasraoui-debug/tensile.git)
-cd tensile
-
-```
-
-### 2. Set Up a Virtual Environment (Arch Linux / PEP 668 Compliant)
-
-```bash
-python -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-
-```
-
-### 3. Install in Editable Mode
-
-```bash
-pip install -e ".[dev]"
-
-```
-
----
-
-## Running Tests & Examples
-
-### Run Numerical Gradient Checks
-
-Verify analytical backward pass gradients against central finite-difference approximations ($\frac{f(x + \epsilon) - f(x - \epsilon)}{2\epsilon}$):
-
-```bash
-pytest tests/test_gradcheck.py
-# Or run directly via Python:
-python tests/test_gradcheck.py
-
-```
-
-### Run Synthetic MNIST Classification Benchmark
-
-Train a multi-layer perceptron (`Linear -> ReLU -> Linear -> CrossEntropy`) on a synthetic 10-class high-dimensional classification task:
-
-```bash
-python examples/train_mnist_synthetic.py
-
-```
-
----
-
-## Core Architecture Highlights
-
-* **Reverse-Mode Autograd (`Tensor`):** Implements dynamic computational graph tracing via `_prev` pointers and Depth-First Search (DFS) topological sorting during `.backward()`.
-* **Robust Unbroadcasting (`unbroadcast`):** Automatically handles reduction and summation across prepended and broadcasted dimensions during elementwise operations and matrix multiplications.
-* **Numerically Stable Losses:** Computes log-softmax cross-entropy using the log-sum-exp stabilization trick to prevent numerical underflow/overflow.
-* **Adaptive Optimizers:** Implements fully vectorized bias-corrected moment updates for Adam and momentum-buffered updates for SGD.
-
-```
-
-```
+<p align="center">Built to make the math visible.</p>

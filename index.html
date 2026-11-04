@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#f3f1eb">
+  <meta name="description" content="Tensile is an interactive neural network workbench. Train a small model, inspect its decision boundary, and watch learning happen in your browser.">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="Tensile — Neural Network Workbench">
+  <meta property="og:description" content="A small neural network, opened up. Experiment with datasets, train a model, and watch its decision boundary take shape.">
+  <meta property="og:image" content="https://tahaenasraoui-debug.github.io/tensile/assets/tensile-banner.jpg">
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="https://tahaenasraoui-debug.github.io/tensile/assets/tensile-banner.jpg">
+  <link rel="icon" type="image/svg+xml" href="./favicon.svg">
+  <title>Tensile — Neural Network Workbench</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="./styles.css">
+</head>
+<body>
+  <div class="grain" aria-hidden="true"></div>
+  <header class="site-header">
+    <a class="brand" href="#top" aria-label="Tensile home">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+      <span>TENSILE<span class="brand-period">.</span></span>
+    </a>
+    <nav class="main-nav" aria-label="Main navigation">
+      <a class="nav-link active" href="#lab">Workbench <span>01</span></a>
+      <a class="nav-link" href="#under-the-hood">Under the hood</a>
+    </nav>
+    <a class="github-link" href="https://github.com/tahaenasraoui-debug/tensile" target="_blank" rel="noreferrer">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M9 19c-4.3 1.4-4.3-2.5-6-3m12 6v-3.9a3.4 3.4 0 0 0-.9-2.7c3-.3 6.1-1.5 6.1-6.7a5.2 5.2 0 0 0-1.4-3.6 4.8 4.8 0 0 0-.1-3.6s-1.2-.4-3.7 1.4a12.8 12.8 0 0 0-6.7 0C5.8 1.1 4.6 1.5 4.6 1.5a4.8 4.8 0 0 0-.1 3.6 5.2 5.2 0 0 0-1.4 3.6c0 5.2 3.1 6.4 6.1 6.7a3.4 3.4 0 0 0-.9 2.7V22"/></svg>
+      <span>GitHub</span><span class="arrow">↗</span>
+    </a>
+  </header>
+
+  <main id="top">
+    <section class="hero wrap">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="eyebrow-dot"></span> AN INTERACTIVE NEURAL NETWORK LAB</div>
+        <h1>Make the model<br>make <em>sense.</em></h1>
+        <p class="hero-description">A small neural network, opened up. Change its shape, train it on different patterns, and watch the decision boundary take form.</p>
+        <a class="hero-cta" href="#lab">Open the workbench <span>↓</span></a>
+      </div>
+      <div class="hero-visual" aria-label="Illustration of a neural network connecting input, hidden and output layers">
+        <div class="visual-topline"><span>MODEL / 001</span><span class="live-indicator"><i></i> LIVE SYSTEM</span></div>
+        <svg class="hero-network" viewBox="0 0 560 280" role="img" aria-label="A three-layer neural network diagram">
+          <g class="net-lines">
+            <path d="M76 72 L246 44 M76 72 L246 112 M76 72 L246 180 M76 72 L246 248 M76 140 L246 44 M76 140 L246 112 M76 140 L246 180 M76 140 L246 248 M76 208 L246 44 M76 208 L246 112 M76 208 L246 180 M76 208 L246 248 M246 44 L474 140 M246 112 L474 140 M246 180 L474 140 M246 248 L474 140"/>
+            <path class="net-highlight" d="M76 140 L246 112 L474 140"/>
+          </g>
+          <g class="net-input"><circle cx="76" cy="72" r="13"/><circle cx="76" cy="140" r="13"/><circle cx="76" cy="208" r="13"/></g>
+          <g class="net-hidden"><circle cx="246" cy="44" r="13"/><circle cx="246" cy="112" r="13"/><circle cx="246" cy="180" r="13"/><circle cx="246" cy="248" r="13"/></g>
+          <g class="net-output"><circle cx="474" cy="140" r="17"/></g>
+          <g class="net-labels"><text x="76" y="264">INPUT</text><text x="246" y="286">HIDDEN LAYER</text><text x="474" y="185">OUTPUT</text></g>
+        </svg>
+        <div class="visual-foot"><span>2 → 6 → 1</span><span>FORWARD PASS <b>↗</b></span></div>
+        <div class="visual-index">01<span>/</span>03</div>
+      </div>
+      <div class="hero-bottomline"><span>NO PRE-RECORDED ANIMATIONS</span><span>EVERY UPDATE IS COMPUTED IN YOUR BROWSER</span><span>BUILT FOR CURIOSITY <b>✳</b></span></div>
+    </section>
+
+    <section class="workbench-section" id="lab">
+      <div class="section-heading wrap">
+        <div><div class="eyebrow section-kicker">01 / THE WORKBENCH</div><h2>Give it a problem.</h2></div>
+        <p>Adjust the model. Press train.<br>See what changes.</p>
+      </div>
+
+      <div class="workbench wrap">
+        <aside class="controls-panel panel">
+          <div class="panel-heading"><div><span class="panel-number">A</span><h3>Configure</h3></div><span class="tiny-label">MODEL INPUTS</span></div>
+
+          <div class="control-group">
+            <label for="dataset">Training data</label>
+            <select id="dataset">
+              <option value="xor">XOR · the classic</option>
+              <option value="moons">Two moons</option>
+              <option value="circles">Concentric circles</option>
+              <option value="spiral">Double spiral</option>
+            </select>
+            <p class="control-hint" id="dataset-hint">A pattern that a straight line can't separate.</p>
+          </div>
+
+          <div class="control-divider"></div>
+          <div class="control-group">
+            <div class="label-row"><label for="hidden">Hidden neurons</label><output id="hidden-value">6</output></div>
+            <input id="hidden" type="range" min="2" max="16" value="6" step="1">
+            <div class="range-labels"><span>2</span><span>16</span></div>
+          </div>
+          <div class="control-group">
+            <label for="activation">Activation function</label>
+            <select id="activation"><option value="tanh">Tanh</option><option value="relu">ReLU</option><option value="sigmoid">Sigmoid</option></select>
+          </div>
+          <div class="control-divider"></div>
+          <div class="control-group">
+            <label for="optimizer">Optimizer</label>
+            <select id="optimizer"><option value="adam">Adam</option><option value="sgd">SGD</option></select>
+          </div>
+          <div class="control-group">
+            <div class="label-row"><label for="learning-rate">Learning rate</label><output id="lr-value">0.0050</output></div>
+            <input id="learning-rate" type="range" min="0" max="100" value="50" step="1">
+            <div class="range-labels"><span>0.0005</span><span>0.05</span></div>
+          </div>
+          <div class="control-group">
+            <label for="batch-size">Batch size</label>
+            <select id="batch-size"><option value="16">16 samples</option><option value="32" selected>32 samples</option><option value="64">64 samples</option><option value="128">128 samples</option><option value="320">Full batch</option></select>
+          </div>
+
+          <div class="control-divider"></div>
+          <div class="control-group data-group">
+            <div class="label-row"><label>Dataset size</label><span class="static-value">320 POINTS</span></div>
+            <button class="regenerate-button" id="regenerate"><span>⟳</span> Generate new data</button>
+          </div>
+          <div class="control-note"><span class="note-icon">i</span><span>Changing the architecture or activation resets the model weights. Your dataset stays the same.</span></div>
+        </aside>
+
+        <div class="main-lab-column">
+          <section class="surface-panel panel">
+            <div class="panel-heading surface-heading">
+              <div><span class="panel-number">B</span><div><h3>Decision surface</h3><p class="panel-subtitle">What the network thinks the world looks like</p></div></div>
+              <span class="training-status" id="status"><i></i> INITIALIZED</span>
+            </div>
+            <div class="surface-canvas-wrap">
+              <canvas id="surface" aria-label="Live decision boundary showing the neural network's classification of the selected dataset"></canvas>
+              <div class="canvas-axis axis-y">FEATURE 02</div>
+              <div class="canvas-axis axis-x">FEATURE 01</div>
+              <div class="surface-overlay"><span class="overlay-key key-a"></span> CLASS A <span class="overlay-key key-b"></span> CLASS B</div>
+            </div>
+            <div class="surface-footer"><span id="surface-caption">XOR · 320 training examples</span><span>TRAINING ACCURACY <b id="confidence">—</b></span></div>
+          </section>
+
+          <section class="training-bar panel">
+            <div class="training-copy"><span class="panel-number">C</span><div><h3>Training loop</h3><p id="training-message">The model is ready. Give it a few epochs.</p></div></div>
+            <div class="training-actions">
+              <button class="button button-primary" id="train"><span class="play-icon">▶</span><span id="train-label">Start training</span></button>
+              <button class="button button-secondary" id="step" title="Train for one epoch">+1 epoch</button>
+              <button class="button button-quiet" id="reset" title="Reset model weights">↺ Reset</button>
+            </div>
+          </section>
+
+          <div class="metrics-grid">
+            <div class="metric-card panel"><span class="metric-label">EPOCH</span><strong id="epoch">0000</strong><span class="metric-foot">training iterations</span></div>
+            <div class="metric-card panel"><span class="metric-label">LOSS</span><strong id="loss">0.693</strong><span class="metric-foot">binary cross-entropy</span></div>
+            <div class="metric-card panel"><span class="metric-label">ACCURACY</span><strong id="accuracy">50.0<span>%</span></strong><span class="metric-foot">on training data</span></div>
+          </div>
+        </div>
+
+        <aside class="inspector-column">
+          <section class="network-panel panel">
+            <div class="panel-heading"><div><span class="panel-number">D</span><h3>Architecture</h3></div><span class="tiny-label" id="architecture-label">2–6–1</span></div>
+            <canvas id="network" aria-label="Diagram of the current neural network architecture and connection weights"></canvas>
+            <div class="network-legend"><span><i class="legend-positive"></i> Positive weight</span><span><i class="legend-negative"></i> Negative weight</span></div>
+            <div class="architecture-meta"><span>PARAMETERS</span><strong id="parameters">25</strong></div>
+          </section>
+          <section class="loss-panel panel">
+            <div class="panel-heading"><div><span class="panel-number">E</span><h3>Learning trace</h3></div><span class="tiny-label">LOSS / EPOCH</span></div>
+            <canvas id="loss-chart" aria-label="Chart of training loss over time"></canvas>
+            <div class="chart-footer"><span>START</span><span id="chart-current">WAITING FOR DATA</span><span>NOW</span></div>
+          </section>
+          <div class="insight-card">
+            <div class="insight-symbol">↗</div>
+            <p class="insight-label">A SMALL REMINDER</p>
+            <p id="insight-text">The model doesn't know what an XOR is. It only adjusts weights to reduce its mistakes.</p>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="under-hood wrap" id="under-the-hood">
+      <div class="under-intro"><div class="eyebrow section-kicker">02 / UNDER THE HOOD</div><h2>Not a movie.<br><em>A working model.</em></h2><p>There are no pre-rendered frames here. Tensile calculates the forward pass, gradients and weight updates in JavaScript, then draws the result you see.</p></div>
+      <div class="under-steps">
+        <article class="under-step"><span class="step-index">01</span><div><h3>Forward pass</h3><p>Inputs flow through weighted connections. Each neuron applies an activation function and passes its output forward.</p><code>z = Wx + b</code></div></article>
+        <article class="under-step"><span class="step-index">02</span><div><h3>Backpropagation</h3><p>The model measures its error, then uses the chain rule to work out how each weight contributed to it.</p><code>∂L / ∂W</code></div></article>
+        <article class="under-step"><span class="step-index">03</span><div><h3>Weight update</h3><p>The optimizer nudges the weights in a direction that should make the next prediction a little better.</p><code>W ← W − η∇L</code></div></article>
+      </div>
+    </section>
+
+    <footer class="site-footer wrap"><a class="brand footer-brand" href="#top"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span>TENSILE<span class="brand-period">.</span></span></a><span>BUILT TO MAKE THE MATH VISIBLE.</span><a href="https://github.com/tahaenasraoui-debug/tensile" target="_blank" rel="noreferrer">SOURCE ON GITHUB ↗</a></footer>
+  </main>
+  <script src="./app.js"></script>
+</body>
+</html>
