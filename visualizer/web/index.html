@@ -1,224 +1,500 @@
-<!-- index.html (Root of repository for GitHub Pages) -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tensile — Autograd DAG & 2D Decision Boundary Inspector</title>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/cytoscape/3.28.1/cytoscape.min.js"></script>
+  <title>Tensile — 3Blue1Brown / Manim Edition Autograd Engine</title>
+  <!-- KaTeX for crisp LaTeX Computer Modern Mathematical Typography -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
+  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=CMU+Serif:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <style>
     :root {
-      --bg: #0d1117;
-      --panel: #161b22;
-      --border: #30363d;
-      --text: #e6edf3;
-      --muted: #8b949e;
-      --accent: #58a6ff;
-      --accent-hot: #ff7b72;
-      --op-node: #d29922;
-      --param-node: #238636;
+      /* Official 3b1b / Manim Color Palette */
+      --manim-bg: #000000;
+      --manim-panel: #08090c;
+      --manim-card: #0c0e14;
+      --manim-grid: #1b263b;
+      --manim-grid-sub: #0d131f;
+      --manim-border: #1e293b;
+      --manim-blue: #58C4DD;
+      --manim-blue-dark: #236B8E;
+      --manim-teal: #5CD0B3;
+      --manim-green: #83C167;
+      --manim-yellow: #FFFF00;
+      --manim-gold: #F0AC5F;
+      --manim-red: #FC6255;
+      --manim-maroon: #C55F73;
+      --manim-purple: #9A72AC;
+      --manim-white: #ECECEC;
+      --manim-muted: #8E9BAE;
     }
+
     * { box-sizing: border-box; margin: 0; padding: 0; }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace;
-      background: var(--bg);
-      color: var(--text);
+      background-color: var(--manim-bg);
+      color: var(--manim-white);
+      font-family: 'Inter', -apple-system, sans-serif;
+      min-height: 100vh;
       display: flex;
       flex-direction: column;
-      min-height: 100vh;
+      overflow-x: hidden;
     }
+
+    /* Top Manim Scene Header */
     header {
-      padding: 12px 20px;
-      background: var(--panel);
-      border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, #0d1017 0%, #050608 100%);
+      border-bottom: 1px solid var(--manim-border);
+      padding: 12px 24px;
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       justify-content: space-between;
-      gap: 12px;
+      gap: 14px;
     }
-    header h1 { font-size: 1.05rem; letter-spacing: 0.4px; color: var(--accent); display: flex; align-items: center; gap: 10px; }
-    .engine-badge {
-      font-size: 0.7rem;
-      padding: 3px 8px;
-      border-radius: 12px;
-      background: #1f2937;
-      border: 1px solid #3fb950;
-      color: #3fb950;
+
+    .brand {
+      display: flex;
+      align-items: center;
+      gap: 14px;
     }
+
+    .manim-logo {
+      width: 28px;
+      height: 28px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 35% 35%, var(--manim-blue) 0%, var(--manim-blue-dark) 55%, #000 100%);
+      box-shadow: 0 0 14px rgba(88, 196, 221, 0.55);
+      border: 1.5px solid var(--manim-blue);
+    }
+
+    .brand-title {
+      font-family: 'Georgia', 'Times New Roman', serif;
+      font-size: 1.25rem;
+      font-weight: 400;
+      letter-spacing: 0.5px;
+      color: var(--manim-white);
+    }
+
+    .brand-title span.accent {
+      color: var(--manim-blue);
+      font-style: italic;
+    }
+
+    .engine-pill {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      padding: 3px 10px;
+      border-radius: 999px;
+      background: rgba(131, 193, 103, 0.12);
+      border: 1px solid var(--manim-green);
+      color: var(--manim-green);
+      letter-spacing: 0.3px;
+    }
+
     .controls {
       display: flex;
       flex-wrap: wrap;
       align-items: center;
       gap: 10px;
     }
-    label { font-size: 0.78rem; color: var(--muted); display: flex; align-items: center; gap: 5px; }
-    select, input[type="number"], button {
-      background: #21262d;
-      color: var(--text);
-      border: 1px solid var(--border);
+
+    .control-group {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      background: #0d111a;
+      border: 1px solid var(--manim-border);
+      padding: 4px 10px;
       border-radius: 6px;
-      padding: 6px 10px;
-      font-size: 0.82rem;
+      font-size: 0.78rem;
+      color: var(--manim-muted);
+    }
+
+    .control-group select,
+    .control-group input {
+      background: transparent;
+      border: none;
+      color: var(--manim-blue);
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.8rem;
+      font-weight: 600;
+      outline: none;
       cursor: pointer;
     }
-    button.primary { background: #1f6feb; border-color: #388bfd; font-weight: 600; }
-    button.primary:hover { background: #388bfd; }
-    button.danger { background: #da3633; border-color: #f85149; }
-    .metrics-bar {
+
+    .control-group select option {
+      background: #0d111a;
+      color: var(--manim-white);
+    }
+
+    button {
+      font-family: 'Inter', sans-serif;
+      font-size: 0.8rem;
+      font-weight: 500;
+      padding: 7px 14px;
+      border-radius: 6px;
+      border: 1px solid var(--manim-border);
+      background: #111622;
+      color: var(--manim-white);
+      cursor: pointer;
+      transition: all 0.18s ease;
+    }
+
+    button:hover {
+      border-color: var(--manim-blue);
+      box-shadow: 0 0 10px rgba(88, 196, 221, 0.25);
+    }
+
+    button.btn-step {
+      background: rgba(88, 196, 221, 0.15);
+      border-color: var(--manim-blue);
+      color: var(--manim-blue);
+    }
+
+    button.btn-train {
+      background: rgba(131, 193, 103, 0.16);
+      border-color: var(--manim-green);
+      color: var(--manim-green);
+    }
+
+    button.btn-train.active {
+      background: rgba(255, 255, 0, 0.18);
+      border-color: var(--manim-yellow);
+      color: var(--manim-yellow);
+      box-shadow: 0 0 14px rgba(255, 255, 0, 0.3);
+    }
+
+    button.btn-reset {
+      background: rgba(252, 98, 85, 0.14);
+      border-color: var(--manim-red);
+      color: var(--manim-red);
+    }
+
+    /* Mathematical Telemetry Bar */
+    .telemetry-bar {
+      background: #040507;
+      border-bottom: 1px solid #151c28;
+      padding: 10px 24px;
       display: flex;
       flex-wrap: wrap;
-      gap: 18px;
-      font-size: 0.85rem;
-      background: #090d13;
-      padding: 8px 20px;
-      border-bottom: 1px solid var(--border);
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
     }
-    .metric span { color: var(--accent); font-weight: 700; }
+
+    .telemetry-items {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 28px;
+    }
+
+    .telemetry-item {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      font-family: 'Georgia', serif;
+      font-size: 0.95rem;
+    }
+
+    .telemetry-item .math-label {
+      color: var(--manim-muted);
+      font-style: italic;
+    }
+
+    .telemetry-item .math-val {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.92rem;
+      color: var(--manim-blue);
+      font-weight: 600;
+    }
+
+    .telemetry-item .math-val.yellow { color: var(--manim-yellow); }
+    .telemetry-item .math-val.green { color: var(--manim-green); }
+    .telemetry-item .math-val.red { color: var(--manim-red); }
+
+    /* Main Split Layout */
     main {
       flex: 1;
       display: grid;
-      grid-template-columns: 420px 1fr;
-      gap: 14px;
-      padding: 14px;
+      grid-template-columns: 460px 1fr;
+      gap: 16px;
+      padding: 16px 20px;
     }
-    .card {
-      background: var(--panel);
-      border: 1px solid var(--border);
-      border-radius: 8px;
+
+    .manim-stage {
+      background: var(--manim-bg);
+      border: 1px solid #1c2536;
+      border-radius: 10px;
       display: flex;
       flex-direction: column;
       overflow: hidden;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85);
+      position: relative;
     }
-    .card-header {
-      padding: 10px 14px;
-      border-bottom: 1px solid var(--border);
-      font-size: 0.85rem;
-      font-weight: 600;
+
+    .stage-header {
+      background: #07090e;
+      border-bottom: 1px solid #161e2e;
+      padding: 10px 16px;
       display: flex;
-      justify-content: space-between;
       align-items: center;
+      justify-content: space-between;
     }
-    #boundaryCanvas {
-      width: 100%;
-      aspect-ratio: 1 / 1;
-      display: block;
-      background: #090d13;
+
+    .stage-title {
+      font-family: 'Georgia', serif;
+      font-size: 0.95rem;
+      color: var(--manim-white);
+      letter-spacing: 0.3px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
     }
-    #cy {
+
+    .stage-subtitle {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.72rem;
+      color: var(--manim-muted);
+    }
+
+    .canvas-container {
+      position: relative;
       width: 100%;
       flex: 1;
-      min-height: 430px;
-      background: #090d13;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #000000;
     }
-    .scrubber-panel {
-      padding: 12px 14px;
-      border-top: 1px solid var(--border);
-      background: #11161d;
+
+    #boundaryCanvas {
+      width: 100%;
+      height: auto;
+      aspect-ratio: 1 / 1;
+      display: block;
+      background: #000000;
+    }
+
+    #dagCanvas {
+      width: 100%;
+      height: 100%;
+      min-height: 460px;
+      display: block;
+      background: #000000;
+      cursor: pointer;
+    }
+
+    /* LaTeX Equation Inspector Footer */
+    .inspector-box {
+      background: #06080c;
+      border-top: 1px solid #172030;
+      padding: 12px 16px;
+      min-height: 88px;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .inspector-title {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--manim-gold);
+      text-transform: uppercase;
+      letter-spacing: 0.7px;
+    }
+
+    .inspector-math {
+      font-size: 0.92rem;
+      color: var(--manim-white);
+      overflow-x: auto;
+    }
+
+    .inspector-stats {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.75rem;
+      color: var(--manim-muted);
+      display: flex;
+      flex-wrap: wrap;
+      gap: 14px;
+    }
+
+    /* Manim Backprop Timeline Scrubber */
+    .scrubber-bar {
+      background: #06080c;
+      border-top: 1px solid #172030;
+      padding: 12px 18px;
       display: flex;
       flex-direction: column;
       gap: 8px;
     }
-    .scrubber-row {
+
+    .scrubber-controls {
       display: flex;
       align-items: center;
-      gap: 10px;
+      gap: 12px;
     }
-    #backpropSlider { flex: 1; accent-color: var(--accent-hot); }
-    .node-inspector {
-      padding: 10px 14px;
-      border-top: 1px solid var(--border);
-      font-size: 0.78rem;
-      line-height: 1.5;
-      color: var(--muted);
-      min-height: 76px;
-    }
-    .badge {
-      padding: 2px 7px;
+
+    input[type="range"]#backpropSlider {
+      flex: 1;
+      -webkit-appearance: none;
+      appearance: none;
+      height: 5px;
+      background: #1a2232;
       border-radius: 4px;
-      font-size: 0.72rem;
-      background: #21262d;
-      color: var(--accent-hot);
+      outline: none;
     }
-    @media (max-width: 960px) {
+
+    input[type="range"]#backpropSlider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: var(--manim-yellow);
+      box-shadow: 0 0 12px var(--manim-yellow);
+      cursor: pointer;
+    }
+
+    .scrubber-caption {
+      font-family: 'Georgia', serif;
+      font-style: italic;
+      font-size: 0.85rem;
+      color: var(--manim-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+
+    @media (max-width: 1080px) {
       main { grid-template-columns: 1fr; }
     }
   </style>
 </head>
 <body>
   <header>
-    <h1>
-      ⚡ TENSILE // Autograd DAG & 2D Neural Sandbox
-      <span id="engineBadge" class="engine-badge">Engine: Initializing...</span>
-    </h1>
+    <div class="brand">
+      <div class="manim-logo"></div>
+      <div class="brand-title">
+        Tensile <span class="accent">// Manim Visual Autograd</span>
+      </div>
+      <span id="engineBadge" class="engine-pill">Scene: Ready</span>
+    </div>
+
     <div class="controls">
-      <label>Dataset
+      <div class="control-group">
+        <span>Manifold</span>
         <select id="datasetSelect">
-          <option value="moons">Moons</option>
-          <option value="circles">Circles</option>
-          <option value="xor">XOR</option>
+          <option value="moons">Two Moons</option>
+          <option value="circles">Concentric Circles</option>
+          <option value="xor">XOR Quadrants</option>
         </select>
-      </label>
-      <label>Activation
+      </div>
+
+      <div class="control-group">
+        <span>&sigma;(z)</span>
         <select id="actSelect">
-          <option value="tanh">Tanh</option>
-          <option value="relu">ReLU</option>
-          <option value="gelu">GELU</option>
-          <option value="sigmoid">Sigmoid</option>
+          <option value="tanh">tanh(z)</option>
+          <option value="relu">ReLU(z)</option>
+          <option value="gelu">GELU(z)</option>
+          <option value="sigmoid">&sigma;(z)</option>
         </select>
-      </label>
-      <label>Hidden
-        <input id="hiddenInput" type="number" value="16" min="4" max="64" step="4" style="width:62px;" />
-      </label>
-      <label>Optimizer
+      </div>
+
+      <div class="control-group">
+        <span>Hidden</span>
+        <input id="hiddenInput" type="number" value="16" min="4" max="64" step="4" style="width: 44px;" />
+      </div>
+
+      <div class="control-group">
+        <span>Optimizer</span>
         <select id="optSelect">
           <option value="adam">Adam</option>
           <option value="sgd">SGD+Mom</option>
         </select>
-      </label>
-      <label>LR
-        <input id="lrInput" type="number" value="0.03" min="0.001" max="0.5" step="0.005" style="width:74px;" />
-      </label>
-      <button id="stepBtn" class="primary">Step (+1)</button>
-      <button id="playTrainBtn">Auto Train</button>
-      <button id="resetBtn" class="danger">Reset</button>
+      </div>
+
+      <div class="control-group">
+        <span>&eta;</span>
+        <input id="lrInput" type="number" value="0.03" min="0.001" max="0.5" step="0.005" style="width: 58px;" />
+      </div>
+
+      <button id="stepBtn" class="btn-step">Step (+1)</button>
+      <button id="playTrainBtn" class="btn-train">&#9654; Animate Training</button>
+      <button id="resetBtn" class="btn-reset">Reset Scene</button>
     </div>
   </header>
 
-  <div class="metrics-bar">
-    <div class="metric">Step: <span id="metricStep">0</span></div>
-    <div class="metric">Loss: <span id="metricLoss">0.00000</span></div>
-    <div class="metric">Accuracy: <span id="metricAcc">0.00%</span></div>
-    <div class="metric">Active Backprop Op: <span id="metricBackpropOp">Full Graph</span></div>
+  <div class="telemetry-bar">
+    <div class="telemetry-items">
+      <div class="telemetry-item">
+        <span class="math-label">Epoch Step t =</span>
+        <span class="math-val" id="metricStep">0</span>
+      </div>
+      <div class="telemetry-item">
+        <span class="math-label">Cross-Entropy &#8466;(&theta;) =</span>
+        <span class="math-val yellow" id="metricLoss">0.00000</span>
+      </div>
+      <div class="telemetry-item">
+        <span class="math-label">Accuracy =</span>
+        <span class="math-val green" id="metricAcc">0.00%</span>
+      </div>
+      <div class="telemetry-item">
+        <span class="math-label">Active Adjoint Operator:</span>
+        <span class="math-val red" id="metricBackpropOp">Full Forward &amp; Backward DAG</span>
+      </div>
+    </div>
+    <div id="headerFormula" style="font-size: 0.85rem; color: var(--manim-muted);"></div>
   </div>
 
   <main>
-    <section class="card">
-      <div class="card-header">
-        <span>2D Decision Boundary Contour</span>
-        <span class="badge">Class 0 (Blue) vs Class 1 (Coral)</span>
+    <!-- Stage 1: Manim NumberPlane & Decision Manifold -->
+    <section class="manim-stage">
+      <div class="stage-header">
+        <div class="stage-title">
+          <span style="color: var(--manim-blue);">&#9673;</span>
+          <span>mathbb{R}&sup2; Decision Manifold &amp; NumberPlane</span>
+        </div>
+        <span class="stage-subtitle">P(y=1 | x) Contour Field</span>
       </div>
-      <canvas id="boundaryCanvas" width="420" height="420"></canvas>
-      <div class="node-inspector" id="nodeInspector">
-        Click any Tensor (rectangle) or Operator (pill) node in the computational graph to inspect its shape, forward value statistics, and exact gradient norm.
+      <div class="canvas-container">
+        <canvas id="boundaryCanvas" width="520" height="520"></canvas>
+      </div>
+      <div class="inspector-box" id="nodeInspector">
+        <div class="inspector-title">Manim Mathematical Inspector</div>
+        <div class="inspector-math" id="inspectorLatex"></div>
+        <div class="inspector-stats" id="inspectorStats">
+          Click any node on the computational graph to inspect its analytical local Jacobian and adjoint norm.
+        </div>
       </div>
     </section>
 
-    <section class="card">
-      <div class="card-header">
-        <span>Dynamic Computation Graph (DAG)</span>
-        <span class="badge" id="stepCounterBadge">Backprop Step: All</span>
+    <!-- Stage 2: Custom Manim Bezier Computation Graph & glowing adjoint pulses -->
+    <section class="manim-stage">
+      <div class="stage-header">
+        <div class="stage-title">
+          <span style="color: var(--manim-yellow);">&#10230;</span>
+          <span>Reverse-Mode Computational Graph &amp; Adjoint Flow</span>
+        </div>
+        <span class="stage-subtitle" id="stepCounterBadge">Chain Rule: All Layers</span>
       </div>
-      <div id="cy"></div>
-      <div class="scrubber-panel">
-        <div class="scrubber-row">
-          <button id="prevBackpropBtn">◀ Prev Op</button>
-          <button id="playBackpropBtn">▶ Play Backprop</button>
-          <button id="nextBackpropBtn">Next Op ▶</button>
+      <div class="canvas-container">
+        <canvas id="dagCanvas" width="980" height="520"></canvas>
+      </div>
+      <div class="scrubber-bar">
+        <div class="scrubber-controls">
+          <button id="prevBackpropBtn">&#9664; Prev Rule</button>
+          <button id="playBackpropBtn" class="btn-step">&#9654; Animate Backprop</button>
+          <button id="nextBackpropBtn">Next Rule &#9654;</button>
           <input id="backpropSlider" type="range" min="-1" max="0" value="-1" />
         </div>
-        <div style="font-size: 0.76rem; color: var(--muted);" id="scrubberStatus">
-          Drag scrubber to step through reverse-mode autodiff in reverse topological order.
+        <div class="scrubber-caption">
+          <span id="scrubberStatus">Scrub or click "Animate Backprop" to watch glowing adjoint pulses propagate from &#8466; back to parameters.</span>
+          <span style="color: var(--manim-blue);">3Blue1Brown / Manim Aesthetic Engine</span>
         </div>
       </div>
     </section>
