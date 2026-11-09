@@ -140,16 +140,20 @@ class Tensor:
         """Returns nodes in topological order (inputs -> root output) via DFS."""
         topo: list[Tensor] = []
         visited: set[int] = set()
-
-        def dfs(node: Tensor) -> None:
-            node_id = id(node)
-            if node_id not in visited:
-                visited.add(node_id)
-                for parent in node._parents:
-                    dfs(parent)
+        # Iterative post-order DFS: deep graphs (long chains, unrolled loops) must not hit Python's recursion limit.
+        stack: list[tuple[Tensor, bool]] = [(self, False)]
+        while stack:
+            node, expanded = stack.pop()
+            if expanded:
                 topo.append(node)
-
-        dfs(self)
+                continue
+            if id(node) in visited:
+                continue
+            visited.add(id(node))
+            stack.append((node, True))
+            for parent in reversed(node._parents):
+                if id(parent) not in visited:
+                    stack.append((parent, False))
         return topo
 
     def backward(self, grad: Optional[np.ndarray] = None) -> None:
@@ -175,7 +179,9 @@ class Tensor:
         topo = self._topological_sort()
 
         for node in topo:
-            if node.requires_grad and node.grad is None:
+            if node.requires_grad and (node.grad is None or node._parents):
+                # Intermediate (non-leaf) nodes start from zero on every backward pass so that a second
+                # backward() does not re-propagate stale adjoints. Leaf grads still accumulate across calls.
                 node.grad = np.zeros_like(node.data, dtype=np.float64)
 
         self.grad = seed_grad
