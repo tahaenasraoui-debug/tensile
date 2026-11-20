@@ -1,517 +1,13 @@
-<<<<<<< HEAD
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Tensile — 3Blue1Brown / Manim Edition Autograd Engine</title>
-  <!-- KaTeX for crisp LaTeX Computer Modern Mathematical Typography -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css" />
-  <script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=CMU+Serif:ital,wght@0,400;0,700;1,400&family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
-  <style>
-    :root {
-      /* Official 3b1b / Manim Color Palette */
-      --manim-bg: #000000;
-      --manim-panel: #08090c;
-      --manim-card: #0c0e14;
-      --manim-grid: #1b263b;
-      --manim-grid-sub: #0d131f;
-      --manim-border: #1e293b;
-      --manim-blue: #58C4DD;
-      --manim-blue-dark: #236B8E;
-      --manim-teal: #5CD0B3;
-      --manim-green: #83C167;
-      --manim-yellow: #FFFF00;
-      --manim-gold: #F0AC5F;
-      --manim-red: #FC6255;
-      --manim-maroon: #C55F73;
-      --manim-purple: #9A72AC;
-      --manim-white: #ECECEC;
-      --manim-muted: #8E9BAE;
-    }
-
-    * { box-sizing: border-box; margin: 0; padding: 0; }
-
-    body {
-      background-color: var(--manim-bg);
-      color: var(--manim-white);
-      font-family: 'Inter', -apple-system, sans-serif;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      overflow-x: hidden;
-    }
-
-    /* Top Manim Scene Header */
-    header {
-      background: linear-gradient(180deg, #0d1017 0%, #050608 100%);
-      border-bottom: 1px solid var(--manim-border);
-      padding: 12px 24px;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 14px;
-    }
-
-    .brand {
-      display: flex;
-      align-items: center;
-      gap: 14px;
-    }
-
-    .manim-logo {
-      width: 28px;
-      height: 28px;
-      border-radius: 50%;
-      background: radial-gradient(circle at 35% 35%, var(--manim-blue) 0%, var(--manim-blue-dark) 55%, #000 100%);
-      box-shadow: 0 0 14px rgba(88, 196, 221, 0.55);
-      border: 1.5px solid var(--manim-blue);
-    }
-
-    .brand-title {
-      font-family: 'Georgia', 'Times New Roman', serif;
-      font-size: 1.25rem;
-      font-weight: 400;
-      letter-spacing: 0.5px;
-      color: var(--manim-white);
-    }
-
-    .brand-title span.accent {
-      color: var(--manim-blue);
-      font-style: italic;
-    }
-
-    .engine-pill {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.72rem;
-      padding: 3px 10px;
-      border-radius: 999px;
-      background: rgba(131, 193, 103, 0.12);
-      border: 1px solid var(--manim-green);
-      color: var(--manim-green);
-      letter-spacing: 0.3px;
-    }
-
-    .controls {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .control-group {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      background: #0d111a;
-      border: 1px solid var(--manim-border);
-      padding: 4px 10px;
-      border-radius: 6px;
-      font-size: 0.78rem;
-      color: var(--manim-muted);
-    }
-
-    .control-group select,
-    .control-group input {
-      background: transparent;
-      border: none;
-      color: var(--manim-blue);
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.8rem;
-      font-weight: 600;
-      outline: none;
-      cursor: pointer;
-    }
-
-    .control-group select option {
-      background: #0d111a;
-      color: var(--manim-white);
-    }
-
-    button {
-      font-family: 'Inter', sans-serif;
-      font-size: 0.8rem;
-      font-weight: 500;
-      padding: 7px 14px;
-      border-radius: 6px;
-      border: 1px solid var(--manim-border);
-      background: #111622;
-      color: var(--manim-white);
-      cursor: pointer;
-      transition: all 0.18s ease;
-    }
-
-    button:hover {
-      border-color: var(--manim-blue);
-      box-shadow: 0 0 10px rgba(88, 196, 221, 0.25);
-    }
-
-    button.btn-step {
-      background: rgba(88, 196, 221, 0.15);
-      border-color: var(--manim-blue);
-      color: var(--manim-blue);
-    }
-
-    button.btn-train {
-      background: rgba(131, 193, 103, 0.16);
-      border-color: var(--manim-green);
-      color: var(--manim-green);
-    }
-
-    button.btn-train.active {
-      background: rgba(255, 255, 0, 0.18);
-      border-color: var(--manim-yellow);
-      color: var(--manim-yellow);
-      box-shadow: 0 0 14px rgba(255, 255, 0, 0.3);
-    }
-
-    button.btn-reset {
-      background: rgba(252, 98, 85, 0.14);
-      border-color: var(--manim-red);
-      color: var(--manim-red);
-    }
-
-    /* Mathematical Telemetry Bar */
-    .telemetry-bar {
-      background: #040507;
-      border-bottom: 1px solid #151c28;
-      padding: 10px 24px;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      justify-content: space-between;
-      gap: 20px;
-    }
-
-    .telemetry-items {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 28px;
-    }
-
-    .telemetry-item {
-      display: flex;
-      align-items: baseline;
-      gap: 8px;
-      font-family: 'Georgia', serif;
-      font-size: 0.95rem;
-    }
-
-    .telemetry-item .math-label {
-      color: var(--manim-muted);
-      font-style: italic;
-    }
-
-    .telemetry-item .math-val {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.92rem;
-      color: var(--manim-blue);
-      font-weight: 600;
-    }
-
-    .telemetry-item .math-val.yellow { color: var(--manim-yellow); }
-    .telemetry-item .math-val.green { color: var(--manim-green); }
-    .telemetry-item .math-val.red { color: var(--manim-red); }
-
-    /* Main Split Layout */
-    main {
-      flex: 1;
-      display: grid;
-      grid-template-columns: 460px 1fr;
-      gap: 16px;
-      padding: 16px 20px;
-    }
-
-    .manim-stage {
-      background: var(--manim-bg);
-      border: 1px solid #1c2536;
-      border-radius: 10px;
-      display: flex;
-      flex-direction: column;
-      overflow: hidden;
-      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.85);
-      position: relative;
-    }
-
-    .stage-header {
-      background: #07090e;
-      border-bottom: 1px solid #161e2e;
-      padding: 10px 16px;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-    }
-
-    .stage-title {
-      font-family: 'Georgia', serif;
-      font-size: 0.95rem;
-      color: var(--manim-white);
-      letter-spacing: 0.3px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .stage-subtitle {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.72rem;
-      color: var(--manim-muted);
-    }
-
-    .canvas-container {
-      position: relative;
-      width: 100%;
-      flex: 1;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #000000;
-    }
-
-    #boundaryCanvas {
-      width: 100%;
-      height: auto;
-      aspect-ratio: 1 / 1;
-      display: block;
-      background: #000000;
-    }
-
-    #dagCanvas {
-      width: 100%;
-      height: 100%;
-      min-height: 460px;
-      display: block;
-      background: #000000;
-      cursor: pointer;
-    }
-
-    /* LaTeX Equation Inspector Footer */
-    .inspector-box {
-      background: #06080c;
-      border-top: 1px solid #172030;
-      padding: 12px 16px;
-      min-height: 88px;
-      display: flex;
-      flex-direction: column;
-      justify-content: center;
-      gap: 6px;
-    }
-
-    .inspector-title {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.75rem;
-      color: var(--manim-gold);
-      text-transform: uppercase;
-      letter-spacing: 0.7px;
-    }
-
-    .inspector-math {
-      font-size: 0.92rem;
-      color: var(--manim-white);
-      overflow-x: auto;
-    }
-
-    .inspector-stats {
-      font-family: 'JetBrains Mono', monospace;
-      font-size: 0.75rem;
-      color: var(--manim-muted);
-      display: flex;
-      flex-wrap: wrap;
-      gap: 14px;
-    }
-
-    /* Manim Backprop Timeline Scrubber */
-    .scrubber-bar {
-      background: #06080c;
-      border-top: 1px solid #172030;
-      padding: 12px 18px;
-      display: flex;
-      flex-direction: column;
-      gap: 8px;
-    }
-
-    .scrubber-controls {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-    }
-
-    input[type="range"]#backpropSlider {
-      flex: 1;
-      -webkit-appearance: none;
-      appearance: none;
-      height: 5px;
-      background: #1a2232;
-      border-radius: 4px;
-      outline: none;
-    }
-
-    input[type="range"]#backpropSlider::-webkit-slider-thumb {
-      -webkit-appearance: none;
-      appearance: none;
-      width: 16px;
-      height: 16px;
-      border-radius: 50%;
-      background: var(--manim-yellow);
-      box-shadow: 0 0 12px var(--manim-yellow);
-      cursor: pointer;
-    }
-
-    .scrubber-caption {
-      font-family: 'Georgia', serif;
-      font-style: italic;
-      font-size: 0.85rem;
-      color: var(--manim-muted);
-      display: flex;
-      justify-content: space-between;
-    }
-
-    @media (max-width: 1080px) {
-      main { grid-template-columns: 1fr; }
-    }
-  </style>
-</head>
-<body>
-  <header>
-    <div class="brand">
-      <div class="manim-logo"></div>
-      <div class="brand-title">
-        Tensile <span class="accent">// Manim Visual Autograd</span>
-      </div>
-      <span id="engineBadge" class="engine-pill">Scene: Ready</span>
-    </div>
-
-    <div class="controls">
-      <div class="control-group">
-        <span>Manifold</span>
-        <select id="datasetSelect">
-          <option value="moons">Two Moons</option>
-          <option value="circles">Concentric Circles</option>
-          <option value="xor">XOR Quadrants</option>
-        </select>
-      </div>
-
-      <div class="control-group">
-        <span>&sigma;(z)</span>
-        <select id="actSelect">
-          <option value="tanh">tanh(z)</option>
-          <option value="relu">ReLU(z)</option>
-          <option value="gelu">GELU(z)</option>
-          <option value="sigmoid">&sigma;(z)</option>
-        </select>
-      </div>
-
-      <div class="control-group">
-        <span>Hidden</span>
-        <input id="hiddenInput" type="number" value="16" min="4" max="64" step="4" style="width: 44px;" />
-      </div>
-
-      <div class="control-group">
-        <span>Optimizer</span>
-        <select id="optSelect">
-          <option value="adam">Adam</option>
-          <option value="sgd">SGD+Mom</option>
-        </select>
-      </div>
-
-      <div class="control-group">
-        <span>&eta;</span>
-        <input id="lrInput" type="number" value="0.03" min="0.001" max="0.5" step="0.005" style="width: 58px;" />
-      </div>
-
-      <button id="stepBtn" class="btn-step">Step (+1)</button>
-      <button id="playTrainBtn" class="btn-train">&#9654; Animate Training</button>
-      <button id="resetBtn" class="btn-reset">Reset Scene</button>
-    </div>
-  </header>
-
-  <div class="telemetry-bar">
-    <div class="telemetry-items">
-      <div class="telemetry-item">
-        <span class="math-label">Epoch Step t =</span>
-        <span class="math-val" id="metricStep">0</span>
-      </div>
-      <div class="telemetry-item">
-        <span class="math-label">Cross-Entropy &#8466;(&theta;) =</span>
-        <span class="math-val yellow" id="metricLoss">0.00000</span>
-      </div>
-      <div class="telemetry-item">
-        <span class="math-label">Accuracy =</span>
-        <span class="math-val green" id="metricAcc">0.00%</span>
-      </div>
-      <div class="telemetry-item">
-        <span class="math-label">Active Adjoint Operator:</span>
-        <span class="math-val red" id="metricBackpropOp">Full Forward &amp; Backward DAG</span>
-      </div>
-    </div>
-    <div id="headerFormula" style="font-size: 0.85rem; color: var(--manim-muted);"></div>
-  </div>
-
-  <main>
-    <!-- Stage 1: Manim NumberPlane & Decision Manifold -->
-    <section class="manim-stage">
-      <div class="stage-header">
-        <div class="stage-title">
-          <span style="color: var(--manim-blue);">&#9673;</span>
-          <span>mathbb{R}&sup2; Decision Manifold &amp; NumberPlane</span>
-        </div>
-        <span class="stage-subtitle">P(y=1 | x) Contour Field</span>
-      </div>
-      <div class="canvas-container">
-        <canvas id="boundaryCanvas" width="520" height="520"></canvas>
-      </div>
-      <div class="inspector-box" id="nodeInspector">
-        <div class="inspector-title">Manim Mathematical Inspector</div>
-        <div class="inspector-math" id="inspectorLatex"></div>
-        <div class="inspector-stats" id="inspectorStats">
-          Click any node on the computational graph to inspect its analytical local Jacobian and adjoint norm.
-        </div>
-      </div>
-    </section>
-
-    <!-- Stage 2: Custom Manim Bezier Computation Graph & glowing adjoint pulses -->
-    <section class="manim-stage">
-      <div class="stage-header">
-        <div class="stage-title">
-          <span style="color: var(--manim-yellow);">&#10230;</span>
-          <span>Reverse-Mode Computational Graph &amp; Adjoint Flow</span>
-        </div>
-        <span class="stage-subtitle" id="stepCounterBadge">Chain Rule: All Layers</span>
-      </div>
-      <div class="canvas-container">
-        <canvas id="dagCanvas" width="980" height="520"></canvas>
-      </div>
-      <div class="scrubber-bar">
-        <div class="scrubber-controls">
-          <button id="prevBackpropBtn">&#9664; Prev Rule</button>
-          <button id="playBackpropBtn" class="btn-step">&#9654; Animate Backprop</button>
-          <button id="nextBackpropBtn">Next Rule &#9654;</button>
-          <input id="backpropSlider" type="range" min="-1" max="0" value="-1" />
-        </div>
-        <div class="scrubber-caption">
-          <span id="scrubberStatus">Scrub or click "Animate Backprop" to watch glowing adjoint pulses propagate from &#8466; back to parameters.</span>
-          <span style="color: var(--manim-blue);">3Blue1Brown / Manim Aesthetic Engine</span>
-        </div>
-      </div>
-    </section>
-  </main>
-
-=======
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f3f1eb">
-  <meta name="description" content="Tensile is an interactive neural network workbench. Train a small model, inspect its decision boundary, and watch learning happen in your browser.">
+  <meta name="description" content="Tensile is an interactive neural network workbench and pure-NumPy autograd engine.">
   <meta property="og:type" content="website">
-  <meta property="og:title" content="Tensile — Neural Network Workbench">
-  <meta property="og:description" content="A small neural network, opened up. Experiment with datasets, train a model, and watch its decision boundary take shape.">
+  <meta property="og:title" content="Tensile — Neural Network Workbench & Autograd Engine">
+  <meta property="og:description" content="An open deep learning workbench. Experiment with non-linear datasets, train models, inspect decision boundaries, and study backprop.">
   <meta property="og:image" content="https://tahaenasraoui-debug.github.io/tensile/assets/tensile-banner.jpg">
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:image" content="https://tahaenasraoui-debug.github.io/tensile/assets/tensile-banner.jpg">
@@ -544,7 +40,7 @@
       <div class="hero-copy">
         <div class="eyebrow"><span class="eyebrow-dot"></span> AN INTERACTIVE NEURAL NETWORK LAB</div>
         <h1>Make the model<br>make <em>sense.</em></h1>
-        <p class="hero-description">A small neural network, opened up. Change its shape, train it on different patterns, and watch the decision boundary take form.</p>
+        <p class="hero-description">A deep learning workbench opened up. Add hidden layers, transform input coordinates, train in real time, and inspect how decision surfaces curve.</p>
         <a class="hero-cta" href="#lab">Open the workbench <span>↓</span></a>
       </div>
       <div class="hero-visual" aria-label="Illustration of a neural network connecting input, hidden and output layers">
@@ -557,9 +53,9 @@
           <g class="net-input"><circle cx="76" cy="72" r="13"/><circle cx="76" cy="140" r="13"/><circle cx="76" cy="208" r="13"/></g>
           <g class="net-hidden"><circle cx="246" cy="44" r="13"/><circle cx="246" cy="112" r="13"/><circle cx="246" cy="180" r="13"/><circle cx="246" cy="248" r="13"/></g>
           <g class="net-output"><circle cx="474" cy="140" r="17"/></g>
-          <g class="net-labels"><text x="76" y="264">INPUT</text><text x="246" y="286">HIDDEN LAYER</text><text x="474" y="185">OUTPUT</text></g>
+          <g class="net-labels"><text x="76" y="264">INPUT</text><text x="246" y="286">HIDDEN LAYERS</text><text x="474" y="185">OUTPUT</text></g>
         </svg>
-        <div class="visual-foot"><span>2 → 6 → 1</span><span>FORWARD PASS <b>↗</b></span></div>
+        <div class="visual-foot"><span id="hero-arch-meta">2 → 6 → 1</span><span>FORWARD PASS <b>↗</b></span></div>
         <div class="visual-index">01<span>/</span>03</div>
       </div>
       <div class="hero-bottomline"><span>NO PRE-RECORDED ANIMATIONS</span><span>EVERY UPDATE IS COMPUTED IN YOUR BROWSER</span><span>BUILT FOR CURIOSITY <b>✳</b></span></div>
@@ -568,7 +64,7 @@
     <section class="workbench-section" id="lab">
       <div class="section-heading wrap">
         <div><div class="eyebrow section-kicker">01 / THE WORKBENCH</div><h2>Give it a problem.</h2></div>
-        <p>Adjust the model. Press train.<br>See what changes.</p>
+        <p>Adjust layers, features & optimizer.<br>Press train to inspect learning.</p>
       </div>
 
       <div class="workbench wrap">
@@ -576,7 +72,7 @@
           <div class="panel-heading"><div><span class="panel-number">A</span><h3>Configure</h3></div><span class="tiny-label">MODEL INPUTS</span></div>
 
           <div class="control-group">
-            <label for="dataset">Training data</label>
+            <label for="dataset">Training dataset</label>
             <select id="dataset">
               <option value="xor">XOR · the classic</option>
               <option value="moons">Two moons</option>
@@ -586,56 +82,112 @@
             <p class="control-hint" id="dataset-hint">A pattern that a straight line can't separate.</p>
           </div>
 
-          <div class="control-divider"></div>
+          <!-- Feature Transformations -->
           <div class="control-group">
-            <div class="label-row"><label for="hidden">Hidden neurons</label><output id="hidden-value">6</output></div>
+            <div class="label-row"><label>Feature transforms</label><span class="static-value" id="features-count">2 active</span></div>
+            <div class="feature-grid" id="feature-toggles">
+              <button type="button" class="feature-pill active" data-feature="x1" title="Feature X1">X₁</button>
+              <button type="button" class="feature-pill active" data-feature="x2" title="Feature X2">X₂</button>
+              <button type="button" class="feature-pill" data-feature="x1_sq" title="Square of X1">X₁²</button>
+              <button type="button" class="feature-pill" data-feature="x2_sq" title="Square of X2">X₂²</button>
+              <button type="button" class="feature-pill" data-feature="x1_x2" title="Interaction X1 * X2">X₁X₂</button>
+              <button type="button" class="feature-pill" data-feature="sin_x1" title="Sine of X1">sin(X₁)</button>
+              <button type="button" class="feature-pill" data-feature="sin_x2" title="Sine of X2">sin(X₂)</button>
+            </div>
+          </div>
+
+          <div class="control-divider"></div>
+
+          <!-- Multi-Layer Depth -->
+          <div class="control-group">
+            <div class="label-row"><label for="depth">Network depth</label><output id="depth-value">1 layer</output></div>
+            <select id="depth">
+              <option value="1">1 Hidden Layer</option>
+              <option value="2">2 Hidden Layers</option>
+              <option value="3">3 Hidden Layers</option>
+            </select>
+          </div>
+
+          <div class="control-group">
+            <div class="label-row"><label for="hidden">Neurons per hidden layer</label><output id="hidden-value">6</output></div>
             <input id="hidden" type="range" min="2" max="16" value="6" step="1">
             <div class="range-labels"><span>2</span><span>16</span></div>
           </div>
+
           <div class="control-group">
             <label for="activation">Activation function</label>
-            <select id="activation"><option value="tanh">Tanh</option><option value="relu">ReLU</option><option value="sigmoid">Sigmoid</option></select>
+            <select id="activation">
+              <option value="tanh">Tanh</option>
+              <option value="relu">ReLU</option>
+              <option value="leaky_relu">LeakyReLU</option>
+              <option value="sigmoid">Sigmoid</option>
+            </select>
           </div>
+
           <div class="control-divider"></div>
+
           <div class="control-group">
             <label for="optimizer">Optimizer</label>
-            <select id="optimizer"><option value="adam">Adam</option><option value="sgd">SGD</option></select>
+            <select id="optimizer">
+              <option value="adam">Adam (adaptive)</option>
+              <option value="sgd">SGD + Momentum</option>
+            </select>
           </div>
+
           <div class="control-group">
             <div class="label-row"><label for="learning-rate">Learning rate</label><output id="lr-value">0.0050</output></div>
             <input id="learning-rate" type="range" min="0" max="100" value="50" step="1">
             <div class="range-labels"><span>0.0005</span><span>0.05</span></div>
           </div>
+
           <div class="control-group">
             <label for="batch-size">Batch size</label>
-            <select id="batch-size"><option value="16">16 samples</option><option value="32" selected>32 samples</option><option value="64">64 samples</option><option value="128">128 samples</option><option value="320">Full batch</option></select>
+            <select id="batch-size">
+              <option value="16">16 samples</option>
+              <option value="32" selected>32 samples</option>
+              <option value="64">64 samples</option>
+              <option value="128">128 samples</option>
+              <option value="320">Full batch</option>
+            </select>
           </div>
 
           <div class="control-divider"></div>
+
           <div class="control-group data-group">
-            <div class="label-row"><label>Dataset size</label><span class="static-value">320 POINTS</span></div>
-            <button class="regenerate-button" id="regenerate"><span>⟳</span> Generate new data</button>
+            <div class="label-row"><label>Dataset split</label><span class="split-badge">80% Train / 20% Test</span></div>
+            <button class="regenerate-button" id="regenerate"><span>⟳</span> Reseed / Generate data</button>
           </div>
-          <div class="control-note"><span class="note-icon">i</span><span>Changing the architecture or activation resets the model weights. Your dataset stays the same.</span></div>
+
+          <div class="control-note"><span class="note-icon">i</span><span>Adjusting architecture, features, or depth resets parameters. The generated samples are preserved.</span></div>
         </aside>
 
         <div class="main-lab-column">
           <section class="surface-panel panel">
             <div class="panel-heading surface-heading">
-              <div><span class="panel-number">B</span><div><h3>Decision surface</h3><p class="panel-subtitle">What the network thinks the world looks like</p></div></div>
+              <div><span class="panel-number">B</span><div><h3>Decision surface</h3><p class="panel-subtitle">Classification contour across 2D plane</p></div></div>
               <span class="training-status" id="status"><i></i> INITIALIZED</span>
             </div>
             <div class="surface-canvas-wrap">
-              <canvas id="surface" aria-label="Live decision boundary showing the neural network's classification of the selected dataset"></canvas>
+              <canvas id="surface" aria-label="Live decision boundary showing the neural network classification"></canvas>
               <div class="canvas-axis axis-y">FEATURE 02</div>
               <div class="canvas-axis axis-x">FEATURE 01</div>
-              <div class="surface-overlay"><span class="overlay-key key-a"></span> CLASS A <span class="overlay-key key-b"></span> CLASS B</div>
+              <div class="surface-overlay">
+                <span class="overlay-key key-a"></span> CLASS A
+                <span class="overlay-key key-b"></span> CLASS B
+                <span style="margin-left: 8px; opacity: 0.6;">· Train (Filled) · Test (Ring)</span>
+              </div>
             </div>
-            <div class="surface-footer"><span id="surface-caption">XOR · 320 training examples</span><span>TRAINING ACCURACY <b id="confidence">—</b></span></div>
+            <div class="surface-footer">
+              <span id="surface-caption">XOR · 320 examples (256 Train / 64 Test)</span>
+              <span>TEST ACCURACY <b id="confidence">—</b></span>
+            </div>
           </section>
 
           <section class="training-bar panel">
-            <div class="training-copy"><span class="panel-number">C</span><div><h3>Training loop</h3><p id="training-message">The model is ready. Give it a few epochs.</p></div></div>
+            <div class="training-copy">
+              <span class="panel-number">C</span>
+              <div><h3>Training loop</h3><p id="training-message">The network is initialized and ready to train.</p></div>
+            </div>
             <div class="training-actions">
               <button class="button button-primary" id="train"><span class="play-icon">▶</span><span id="train-label">Start training</span></button>
               <button class="button button-secondary" id="step" title="Train for one epoch">+1 epoch</button>
@@ -644,45 +196,107 @@
           </section>
 
           <div class="metrics-grid">
-            <div class="metric-card panel"><span class="metric-label">EPOCH</span><strong id="epoch">0000</strong><span class="metric-foot">training iterations</span></div>
-            <div class="metric-card panel"><span class="metric-label">LOSS</span><strong id="loss">0.693</strong><span class="metric-foot">binary cross-entropy</span></div>
-            <div class="metric-card panel"><span class="metric-label">ACCURACY</span><strong id="accuracy">50.0<span>%</span></strong><span class="metric-foot">on training data</span></div>
+            <div class="metric-card panel">
+              <span class="metric-label">EPOCH</span>
+              <strong id="epoch">0000</strong>
+              <span class="metric-foot">training iterations</span>
+            </div>
+            <div class="metric-card panel">
+              <span class="metric-label">LOSS (TRAIN / TEST)</span>
+              <strong class="dual-val" id="loss">0.693 <em>/ 0.693</em></strong>
+              <span class="metric-foot">binary cross-entropy</span>
+            </div>
+            <div class="metric-card panel">
+              <span class="metric-label">ACCURACY (TRAIN / TEST)</span>
+              <strong class="dual-val" id="accuracy">50.0% <em>/ 50.0%</em></strong>
+              <span class="metric-foot">generalization check</span>
+            </div>
           </div>
         </div>
 
         <aside class="inspector-column">
           <section class="network-panel panel">
-            <div class="panel-heading"><div><span class="panel-number">D</span><h3>Architecture</h3></div><span class="tiny-label" id="architecture-label">2–6–1</span></div>
-            <canvas id="network" aria-label="Diagram of the current neural network architecture and connection weights"></canvas>
-            <div class="network-legend"><span><i class="legend-positive"></i> Positive weight</span><span><i class="legend-negative"></i> Negative weight</span></div>
-            <div class="architecture-meta"><span>PARAMETERS</span><strong id="parameters">25</strong></div>
+            <div class="panel-heading">
+              <div><span class="panel-number">D</span><h3>Architecture</h3></div>
+              <span class="tiny-label" id="architecture-label">2–6–1</span>
+            </div>
+            <canvas id="network" aria-label="Diagram of neural network layers and connection weights"></canvas>
+            <div class="network-legend">
+              <span><i class="legend-positive"></i> Positive weight</span>
+              <span><i class="legend-negative"></i> Negative weight</span>
+            </div>
+            <div class="architecture-meta">
+              <span>PARAMETERS</span>
+              <strong id="parameters">25</strong>
+            </div>
           </section>
+
           <section class="loss-panel panel">
-            <div class="panel-heading"><div><span class="panel-number">E</span><h3>Learning trace</h3></div><span class="tiny-label">LOSS / EPOCH</span></div>
-            <canvas id="loss-chart" aria-label="Chart of training loss over time"></canvas>
-            <div class="chart-footer"><span>START</span><span id="chart-current">WAITING FOR DATA</span><span>NOW</span></div>
+            <div class="panel-heading">
+              <div><span class="panel-number">E</span><h3>Learning trace</h3></div>
+              <span class="tiny-label">TRAIN (ORANGE) & TEST (TEAL)</span>
+            </div>
+            <canvas id="loss-chart" aria-label="Chart of train and test loss over epochs"></canvas>
+            <div class="chart-footer">
+              <span>START</span>
+              <span id="chart-current">WAITING FOR DATA</span>
+              <span>NOW</span>
+            </div>
           </section>
+
           <div class="insight-card">
             <div class="insight-symbol">↗</div>
-            <p class="insight-label">A SMALL REMINDER</p>
-            <p id="insight-text">The model doesn't know what an XOR is. It only adjusts weights to reduce its mistakes.</p>
+            <p class="insight-label">ARCHITECTURAL INSIGHT</p>
+            <p id="insight-text">Adding transformed features (e.g. X1², X2²) enables linear boundaries to separate non-linear circles instantly!</p>
           </div>
         </aside>
       </div>
     </section>
 
     <section class="under-hood wrap" id="under-the-hood">
-      <div class="under-intro"><div class="eyebrow section-kicker">02 / UNDER THE HOOD</div><h2>Not a movie.<br><em>A working model.</em></h2><p>There are no pre-rendered frames here. Tensile calculates the forward pass, gradients and weight updates in JavaScript, then draws the result you see.</p></div>
+      <div class="under-intro">
+        <div class="eyebrow section-kicker">02 / UNDER THE HOOD</div>
+        <h2>Not a movie.<br><em>A working model.</em></h2>
+        <p>There are no pre-rendered frames here. Tensile computes the forward pass, analytical backpropagation, and weight updates in JavaScript, then draws the decision contour in real time.</p>
+      </div>
       <div class="under-steps">
-        <article class="under-step"><span class="step-index">01</span><div><h3>Forward pass</h3><p>Inputs flow through weighted connections. Each neuron applies an activation function and passes its output forward.</p><code>z = Wx + b</code></div></article>
-        <article class="under-step"><span class="step-index">02</span><div><h3>Backpropagation</h3><p>The model measures its error, then uses the chain rule to work out how each weight contributed to it.</p><code>∂L / ∂W</code></div></article>
-        <article class="under-step"><span class="step-index">03</span><div><h3>Weight update</h3><p>The optimizer nudges the weights in a direction that should make the next prediction a little better.</p><code>W ← W − η∇L</code></div></article>
+        <article class="under-step">
+          <span class="step-index">01</span>
+          <div>
+            <h3>Forward pass</h3>
+            <p>Input coordinates and polynomial transforms flow through weighted connections. Each neuron applies the chosen non-linearity (Tanh, ReLU, LeakyReLU, or Sigmoid).</p>
+            <code>z^{[l]} = W^{[l]} a^{[l-1]} + b^{[l]}</code>
+          </div>
+        </article>
+        <article class="under-step">
+          <span class="step-index">02</span>
+          <div>
+            <h3>Backpropagation</h3>
+            <p>Binary cross-entropy loss gradients propagate backwards using the chain rule to accumulate partial derivatives for every weight matrix and bias vector.</p>
+            <code>\delta^{[l]} = (W^{[l+1]T} \delta^{[l+1]}) \odot \sigma'(z^{[l]})</code>
+          </div>
+        </article>
+        <article class="under-step">
+          <span class="step-index">03</span>
+          <div>
+            <h3>Optimizer step</h3>
+            <p>Adam or SGD with momentum updates the parameters to minimize empirical risk while tracking train vs test generalization.</p>
+            <code>\theta \leftarrow \theta - \eta \cdot \hat{m}_t / (\sqrt{\hat{v}_t} + \epsilon)</code>
+          </div>
+        </article>
       </div>
     </section>
 
-    <footer class="site-footer wrap"><a class="brand footer-brand" href="#top"><span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span><span>TENSILE<span class="brand-period">.</span></span></a><span>BUILT TO MAKE THE MATH VISIBLE.</span><a href="https://github.com/tahaenasraoui-debug/tensile" target="_blank" rel="noreferrer">SOURCE ON GITHUB ↗</a></footer>
+    <footer class="site-footer wrap">
+      <a class="brand footer-brand" href="#top">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+        <span>TENSILE<span class="brand-period">.</span></span>
+      </a>
+      <span>BUILT TO MAKE THE MATH VISIBLE.</span>
+      <a href="https://github.com/tahaenasraoui-debug/tensile" target="_blank" rel="noreferrer">SOURCE ON GITHUB ↗</a>
+    </footer>
   </main>
->>>>>>> e0dcee5 (Redesign Tensile website and branding)
+
   <script src="./app.js"></script>
 </body>
 </html>
