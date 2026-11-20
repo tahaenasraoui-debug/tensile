@@ -252,6 +252,142 @@ class LayerNorm(Module):
         )
 
 
+class BatchNorm1d(Module):
+    """
+    Applies Batch Normalization over a 2D or 3D input:
+    y = ((x - E[x]) / sqrt(Var[x] + eps)) * gamma + beta
+    Maintains running estimates of mean and variance during training.
+    """
+
+    def __init__(
+        self,
+        num_features: int,
+        eps: float = 1e-5,
+        momentum: float = 0.1,
+        affine: bool = True,
+    ) -> None:
+        super().__init__()
+        self.num_features = num_features
+        self.eps = float(eps)
+        self.momentum = float(momentum)
+        self.affine = affine
+
+        if self.affine:
+            self.weight = Tensor(
+                np.ones((num_features,), dtype=np.float64),
+                requires_grad=True,
+                name="weight",
+            )
+            self.bias = Tensor(
+                np.zeros((num_features,), dtype=np.float64),
+                requires_grad=True,
+                name="bias",
+            )
+        else:
+            self.weight = None
+            self.bias = None
+
+        self.running_mean = np.zeros((num_features,), dtype=np.float64)
+        self.running_var = np.ones((num_features,), dtype=np.float64)
+
+    def forward(self, x: Tensor) -> Tensor:
+        if x.ndim not in (2, 3):
+            raise ValueError(f"Expected 2D or 3D input, got shape {x.shape}")
+        if x.shape[1] != self.num_features:
+            raise ValueError(
+                f"Expected {self.num_features} channels, got {x.shape[1]}"
+            )
+
+        axes = (0,) if x.ndim == 2 else (0, 2)
+        n = x.data.shape[0] if x.ndim == 2 else x.data.shape[0] * x.data.shape[2]
+
+        if self.training:
+            mean = np.mean(x.data, axis=axes, keepdims=True)
+            var = np.var(x.data, axis=axes, keepdims=True)
+            std_inv = 1.0 / np.sqrt(var + self.eps)
+            x_hat = (x.data - mean) * std_inv
+
+            # Update running statistics with momentum
+            mean_flat = mean.squeeze()
+            var_flat = var.squeeze()
+            unbiased_var = var_flat * (n / max(1, n - 1))
+            self.running_mean = (
+                (1.0 - self.momentum) * self.running_mean + self.momentum * mean_flat
+            )
+            self.running_var = (
+                (1.0 - self.momentum) * self.running_var + self.momentum * unbiased_var
+            )
+        else:
+            rm = (
+                self.running_mean.reshape(1, -1)
+                if x.ndim == 2
+                else self.running_mean.reshape(1, -1, 1)
+            )
+            rv = (
+                self.running_var.reshape(1, -1)
+                if x.ndim == 2
+                else self.running_var.reshape(1, -1, 1)
+            )
+            std_inv = 1.0 / np.sqrt(rv + self.eps)
+            x_hat = (x.data - rm) * std_inv
+
+        out_data = x_hat
+        w_shape = (1, -1) if x.ndim == 2 else (1, -1, 1)
+
+        if self.affine and self.weight is not None:
+            out_data = out_data * self.weight.data.reshape(w_shape)
+            if self.bias is not None:
+                out_data = out_data + self.bias.data.reshape(w_shape)
+
+        parents = [x]
+        if self.affine:
+            if self.weight is not None and self.weight.requires_grad:
+                parents.append(self.weight)
+            if self.bias is not None and self.bias.requires_grad:
+                parents.append(self.bias)
+
+        out = Tensor(
+            out_data,
+            requires_grad=any(p.requires_grad for p in parents),
+            _prev=parents,
+            _op="BatchNorm1d",
+        )
+
+        is_training = self.training
+
+        def _backward() -> None:
+            if out.grad is None:
+                return
+
+            if self.affine and self.weight is not None:
+                if self.bias is not None and self.bias.requires_grad:
+                    self.bias.grad += np.sum(out.grad, axis=axes)
+                if self.weight.requires_grad:
+                    self.weight.grad += np.sum(out.grad * x_hat, axis=axes)
+                dy = out.grad * self.weight.data.reshape(w_shape)
+            else:
+                dy = out.grad
+
+            if x.requires_grad:
+                if is_training:
+                    dx_hat = dy
+                    sum_dx_hat = np.sum(dx_hat, axis=axes, keepdims=True)
+                    sum_dx_hat_x_hat = np.sum(dx_hat * x_hat, axis=axes, keepdims=True)
+                    dx = (1.0 / n) * std_inv * (n * dx_hat - sum_dx_hat - x_hat * sum_dx_hat_x_hat)
+                    x.grad += dx
+                else:
+                    x.grad += dy * std_inv
+
+        out._backward = _backward
+        return out
+
+    def __repr__(self) -> str:
+        return (
+            f"BatchNorm1d({self.num_features}, eps={self.eps}, "
+            f"momentum={self.momentum}, affine={self.affine})"
+        )
+
+
 class Flatten(Module):
     """
     Flattens contiguous dimensions into a tensor of shape (N, -1).

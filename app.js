@@ -14,6 +14,8 @@
     learningRate: $('learning-rate'),
     lrValue: $('lr-value'),
     batchSize: $('batch-size'),
+    noise: $('noise'),
+    noiseValue: $('noise-value'),
     featuresCount: $('features-count'),
     featureToggles: $('feature-toggles'),
     regenerate: $('regenerate'),
@@ -33,6 +35,8 @@
     chartCurrent: $('chart-current'),
     insightText: $('insight-text'),
     surface: $('surface'),
+    canvasProbe: $('canvas-probe'),
+    exportWeights: $('export-weights'),
     network: $('network'),
     chart: $('loss-chart'),
     heroArchMeta: $('hero-arch-meta')
@@ -128,16 +132,18 @@
 
   function generateDataset(kind) {
     randomSeed = (Math.floor(Math.random() * 1e9) ^ 0x51f15e) >>> 0;
+    const noiseLevel = ui.noise ? Number(ui.noise.value) / 100 : 0.15;
     const out = [];
     const n = 320;
+
     for (let i = 0; i < n; i++) {
       let x = 0, y = 0, label = 0;
       if (kind === 'xor') {
         x = (random() * 2 - 1) * 0.88;
         y = (random() * 2 - 1) * 0.88;
         label = x * y >= 0 ? 1 : 0;
-        x += randn() * 0.035;
-        y += randn() * 0.035;
+        x += randn() * (0.02 + noiseLevel * 0.2);
+        y += randn() * (0.02 + noiseLevel * 0.2);
       } else if (kind === 'moons') {
         const upper = random() > 0.5;
         const t = random() * Math.PI;
@@ -150,22 +156,22 @@
           y = -0.23 - Math.sin(t) * 0.54;
           label = 1;
         }
-        x += randn() * 0.075;
-        y += randn() * 0.075;
+        x += randn() * (0.04 + noiseLevel * 0.3);
+        y += randn() * (0.04 + noiseLevel * 0.3);
       } else if (kind === 'circles') {
         const outer = random() > 0.5;
         const t = random() * Math.PI * 2;
-        const r = outer ? 0.68 + randn() * 0.065 : 0.31 + randn() * 0.055;
-        x = Math.cos(t) * r + randn() * 0.025;
-        y = Math.sin(t) * r + randn() * 0.025;
+        const r = outer ? 0.68 + randn() * (0.04 + noiseLevel * 0.2) : 0.31 + randn() * (0.04 + noiseLevel * 0.2);
+        x = Math.cos(t) * r + randn() * (0.01 + noiseLevel * 0.1);
+        y = Math.sin(t) * r + randn() * (0.01 + noiseLevel * 0.1);
         label = outer ? 1 : 0;
       } else {
         const arm = random() > 0.5 ? 1 : 0;
         const t = 0.16 + random() * 0.88;
         const angle = t * Math.PI * 2.3 + arm * Math.PI;
         const r = 0.08 + t * 0.72;
-        x = Math.cos(angle) * r + randn() * 0.035;
-        y = Math.sin(angle) * r + randn() * 0.035;
+        x = Math.cos(angle) * r + randn() * (0.02 + noiseLevel * 0.2);
+        y = Math.sin(angle) * r + randn() * (0.02 + noiseLevel * 0.2);
         label = arm;
       }
       out.push({ x: clamp(x, -1, 1), y: clamp(y, -1, 1), label });
@@ -395,9 +401,14 @@
         const idx = (py * res + px) * 4;
 
         // Class A: teal (#347f79), Class B: orange (#f15c3d)
-        const r = Math.round(52 + (241 - 52) * prob);
-        const g = Math.round(127 + (92 - 127) * prob);
-        const b = Math.round(121 + (61 - 121) * prob);
+        let r = Math.round(52 + (241 - 52) * prob);
+        let g = Math.round(127 + (92 - 127) * prob);
+        let b = Math.round(121 + (61 - 121) * prob);
+
+        // Highlight the 0.5 decision boundary
+        if (Math.abs(prob - 0.5) < 0.03) {
+          r = 255; g = 255; b = 255;
+        }
 
         dataBuf[idx] = r;
         dataBuf[idx + 1] = g;
@@ -669,6 +680,14 @@
     ui.lrValue.textContent = getLearningRate().toFixed(4);
   });
 
+  if (ui.noise) {
+    ui.noise.addEventListener('input', () => {
+      ui.noiseValue.textContent = `${ui.noise.value}%`;
+      generateDataset(ui.dataset.value);
+      createModel();
+    });
+  }
+
   ui.train.addEventListener('click', () => {
     setTrainingState(!isTraining);
   });
@@ -688,6 +707,68 @@
     generateDataset(ui.dataset.value);
     createModel();
   });
+
+  // Interactive Click to Add Point on Decision Surface
+  ui.surface.addEventListener('click', (e) => {
+    const rect = ui.surface.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width;
+    const py = (e.clientY - rect.top) / rect.height;
+    const x = clamp(px * 2 - 1, -1, 1);
+    const y = clamp(1 - py * 2, -1, 1);
+    const label = e.shiftKey ? 1 : 0;
+
+    const newPt = { x, y, label };
+    allData.push(newPt);
+    trainData.push(newPt);
+
+    const trainMetrics = evaluate(trainData);
+    const testMetrics = evaluate(testData);
+    updateMetricsUI(trainMetrics, testMetrics);
+    renderAll();
+  });
+
+  // Hover Probe on Surface Canvas
+  ui.surface.addEventListener('mousemove', (e) => {
+    if (!ui.canvasProbe) return;
+    const rect = ui.surface.getBoundingClientRect();
+    const px = (e.clientX - rect.left) / rect.width;
+    const py = (e.clientY - rect.top) / rect.height;
+    const x = clamp(px * 2 - 1, -1, 1);
+    const y = clamp(1 - py * 2, -1, 1);
+    const prob = forward(x, y);
+
+    ui.canvasProbe.style.display = 'block';
+    ui.canvasProbe.style.left = `${Math.min(rect.width - 160, e.clientX - rect.left + 14)}px`;
+    ui.canvasProbe.style.top = `${e.clientY - rect.top}px`;
+    ui.canvasProbe.innerHTML = `(x: ${x >= 0 ? '+' : ''}${x.toFixed(2)}, y: ${y >= 0 ? '+' : ''}${y.toFixed(2)}) · P(B): <b>${(prob * 100).toFixed(1)}%</b>`;
+  });
+
+  ui.surface.addEventListener('mouseleave', () => {
+    if (ui.canvasProbe) ui.canvasProbe.style.display = 'none';
+  });
+
+  // Export Weights
+  if (ui.exportWeights) {
+    ui.exportWeights.addEventListener('click', () => {
+      if (!model) return;
+      const payload = {
+        name: "Tensile Model Checkpoint",
+        architecture: model.sizes,
+        activation: model.activation,
+        weights: model.weights,
+        biases: model.biases,
+        step: model.step,
+        exported_at: new Date().toISOString()
+      };
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `tensile_weights_${model.sizes.join('-')}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    });
+  }
 
   window.addEventListener('resize', renderAll);
 

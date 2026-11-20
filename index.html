@@ -154,6 +154,14 @@
           <div class="control-divider"></div>
 
           <div class="control-group data-group">
+            <div class="label-row"><label for="noise">Dataset noise</label><output id="noise-value">15%</output></div>
+            <input id="noise" type="range" min="0" max="50" value="15" step="5">
+            <div class="range-labels"><span>0%</span><span>50%</span></div>
+          </div>
+
+          <div class="control-divider"></div>
+
+          <div class="control-group data-group">
             <div class="label-row"><label>Dataset split</label><span class="split-badge">80% Train / 20% Test</span></div>
             <button class="regenerate-button" id="regenerate"><span>⟳</span> Reseed / Generate data</button>
           </div>
@@ -171,10 +179,11 @@
               <canvas id="surface" aria-label="Live decision boundary showing the neural network classification"></canvas>
               <div class="canvas-axis axis-y">FEATURE 02</div>
               <div class="canvas-axis axis-x">FEATURE 01</div>
+              <div class="canvas-probe" id="canvas-probe" style="display: none;"></div>
               <div class="surface-overlay">
                 <span class="overlay-key key-a"></span> CLASS A
                 <span class="overlay-key key-b"></span> CLASS B
-                <span style="margin-left: 8px; opacity: 0.6;">· Train (Filled) · Test (Ring)</span>
+                <span style="margin-left: 8px; opacity: 0.6;">· Click to paint (Shift=B)</span>
               </div>
             </div>
             <div class="surface-footer">
@@ -229,6 +238,7 @@
               <span>PARAMETERS</span>
               <strong id="parameters">25</strong>
             </div>
+            <button type="button" class="export-button" id="export-weights">📥 Export Weights (JSON)</button>
           </section>
 
           <section class="loss-panel panel">

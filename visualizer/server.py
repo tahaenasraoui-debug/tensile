@@ -35,7 +35,7 @@ app.add_middleware(
 # Synthetic 2D Datasets (Moons, Circles, XOR)
 # -------------------------------------------------------------------------
 def make_dataset(
-    kind: Literal["moons", "circles", "xor"] = "moons",
+    kind: Literal["moons", "circles", "xor", "spiral"] = "moons",
     n_samples: int = 200,
     seed: int = 42,
 ) -> tuple[np.ndarray, np.ndarray]:
@@ -61,6 +61,16 @@ def make_dataset(
         X = np.vstack([x1, x2])
         y = np.hstack([np.zeros(n_half, dtype=np.int64), np.ones(n_samples - n_half, dtype=np.int64)])
 
+    elif kind == "spiral":
+        t = np.linspace(0.1, 1.0, n_half)
+        theta1 = t * 2.5 * np.pi
+        theta2 = theta1 + np.pi
+        r = t * 1.3
+        x1 = np.stack([r * np.cos(theta1), r * np.sin(theta1)], axis=1)
+        x2 = np.stack([r * np.cos(theta2), r * np.sin(theta2)], axis=1)
+        X = np.vstack([x1, x2]) + rng.normal(0.0, 0.05, size=(n_samples, 2))
+        y = np.hstack([np.zeros(n_half, dtype=np.int64), np.ones(n_samples - n_half, dtype=np.int64)])
+
     else:  # "xor"
         X = rng.uniform(-1.4, 1.4, size=(n_samples, 2))
         y = ((X[:, 0] * X[:, 1]) < 0).astype(np.int64)
@@ -72,10 +82,10 @@ def make_dataset(
 # Sandbox Training Session State
 # -------------------------------------------------------------------------
 class StepRequest(BaseModel):
-    dataset: Literal["moons", "circles", "xor"] = "moons"
-    activation: Literal["relu", "tanh", "gelu", "sigmoid"] = "tanh"
+    dataset: Literal["moons", "circles", "xor", "spiral"] = "moons"
+    activation: Literal["relu", "tanh", "gelu", "sigmoid", "leaky_relu"] = "tanh"
     hidden_dim: int = Field(default=16, ge=4, le=64)
-    optimizer: Literal["adam", "sgd"] = "adam"
+    optimizer: Literal["adam", "sgd", "adamw", "rmsprop"] = "adam"
     lr: float = Field(default=0.03, gt=0.0, le=1.0)
     steps: int = Field(default=1, ge=1, le=25)
     reset: bool = False
@@ -83,10 +93,10 @@ class StepRequest(BaseModel):
 
 class SandboxSession:
     def __init__(self) -> None:
-        self.dataset_name: Literal["moons", "circles", "xor"] = "moons"
-        self.activation_name: Literal["relu", "tanh", "gelu", "sigmoid"] = "tanh"
+        self.dataset_name: Literal["moons", "circles", "xor", "spiral"] = "moons"
+        self.activation_name: Literal["relu", "tanh", "gelu", "sigmoid", "leaky_relu"] = "tanh"
         self.hidden_dim: int = 16
-        self.optimizer_name: Literal["adam", "sgd"] = "adam"
+        self.optimizer_name: Literal["adam", "sgd", "adamw", "rmsprop"] = "adam"
         self.lr: float = 0.03
         self.step_count: int = 0
         self.last_loss: float = 0.0
@@ -97,6 +107,8 @@ class SandboxSession:
     def _make_activation(self, name: str) -> nn.Module:
         if name == "relu":
             return nn.ReLU()
+        if name == "leaky_relu":
+            return nn.LeakyReLU()
         if name == "gelu":
             return nn.GELU()
         if name == "sigmoid":
@@ -105,10 +117,10 @@ class SandboxSession:
 
     def configure(
         self,
-        dataset: Literal["moons", "circles", "xor"] = "moons",
-        activation: Literal["relu", "tanh", "gelu", "sigmoid"] = "tanh",
+        dataset: Literal["moons", "circles", "xor", "spiral"] = "moons",
+        activation: Literal["relu", "tanh", "gelu", "sigmoid", "leaky_relu"] = "tanh",
         hidden_dim: int = 16,
-        optimizer: Literal["adam", "sgd"] = "adam",
+        optimizer: Literal["adam", "sgd", "adamw", "rmsprop"] = "adam",
         lr: float = 0.03,
     ) -> None:
         np.random.seed(42)
@@ -137,6 +149,10 @@ class SandboxSession:
         ]
         if optimizer == "adam":
             self.opt: tl.optim.Optimizer = tl.optim.Adam(params, lr=lr)
+        elif optimizer == "adamw":
+            self.opt = tl.optim.AdamW(params, lr=lr)
+        elif optimizer == "rmsprop":
+            self.opt = tl.optim.RMSprop(params, lr=lr)
         else:
             self.opt = tl.optim.SGD(params, lr=lr, momentum=0.9)
 

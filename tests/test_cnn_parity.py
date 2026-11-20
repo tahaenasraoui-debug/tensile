@@ -209,3 +209,65 @@ def test_end_to_end_cnn_pipeline() -> None:
     assert x.grad.shape == (4, 1, 14, 14)
     assert model[0].weight.grad is not None
     assert model[4].weight.grad is not None
+
+
+def test_batchnorm1d_forward_and_backward_parity() -> None:
+    np.random.seed(42)
+    b, c = 4, 3
+    x_np = np.random.randn(b, c).astype(np.float64)
+    w_np = np.random.randn(c).astype(np.float64)
+    b_np = np.random.randn(c).astype(np.float64)
+
+    # Tensile
+    bn_tl = nn.BatchNorm1d(c, eps=1e-5, momentum=0.1)
+    bn_tl.weight.data[...] = w_np.copy()
+    bn_tl.bias.data[...] = b_np.copy()
+    x_tl = Tensor(x_np.copy(), requires_grad=True)
+
+    out_tl = bn_tl(x_tl)
+    loss_tl = (out_tl ** 2).sum()
+    loss_tl.backward()
+
+    # PyTorch
+    x_pt = torch.tensor(x_np.copy(), dtype=torch.float64, requires_grad=True)
+    bn_pt = torch.nn.BatchNorm1d(c, eps=1e-5, momentum=0.1, dtype=torch.float64)
+    with torch.no_grad():
+        bn_pt.weight.copy_(torch.tensor(w_np))
+        bn_pt.bias.copy_(torch.tensor(b_np))
+    out_pt = bn_pt(x_pt)
+    loss_pt = (out_pt ** 2).sum()
+    loss_pt.backward()
+
+    assert np.allclose(out_tl.data, out_pt.detach().numpy(), atol=1e-6)
+    assert np.allclose(x_tl.grad, x_pt.grad.numpy(), atol=1e-6)
+    assert np.allclose(bn_tl.weight.grad, bn_pt.weight.grad.numpy(), atol=1e-6)
+    assert np.allclose(bn_tl.bias.grad, bn_pt.bias.grad.numpy(), atol=1e-6)
+
+
+def test_lr_schedulers_step_parity() -> None:
+    p = Tensor(np.zeros(2), requires_grad=True)
+    opt = optim.SGD([p], lr=0.1)
+
+    step_sched = optim.StepLR(opt, step_size=2, gamma=0.5)
+    # initial step in __init__ makes epoch 0
+    assert np.isclose(opt.lr, 0.1)
+
+    step_sched.step()  # epoch 1
+    assert np.isclose(opt.lr, 0.1)
+
+    step_sched.step()  # epoch 2
+    assert np.isclose(opt.lr, 0.05)
+
+    step_sched.step()  # epoch 3
+    assert np.isclose(opt.lr, 0.05)
+
+    step_sched.step()  # epoch 4
+    assert np.isclose(opt.lr, 0.025)
+
+    # Cosine Annealing
+    opt2 = optim.SGD([p], lr=0.1)
+    cos_sched = optim.CosineAnnealingLR(opt2, T_max=10, eta_min=0.01)
+    for _ in range(10):
+        cos_sched.step()
+    # At T_max, lr should reach eta_min
+    assert np.isclose(opt2.lr, 0.01, atol=1e-5)
