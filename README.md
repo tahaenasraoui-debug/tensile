@@ -25,17 +25,20 @@ It provides complete algorithmic transparency into how tensors, DAG reverse-mode
 
 ### 1. Interactive In-Browser Sandbox
 - **Zero dependencies:** Runs natively in any modern web browser via vanilla JavaScript and HTML5 Canvas.
-- **Multiple 2D datasets:** XOR, two moons, concentric circles, and double spiral.
-- **Configurable network architecture:** Customizable multi-layer perceptron depth and neuron counts.
-- **Rich non-linear activations:** Tanh, ReLU, Sigmoid, and LeakyReLU.
-- **Optimizers:** Adam and SGD with momentum, adjustable learning rate, batch size, and regularization.
-- **Live visualizations:** Real-time decision surface contour heatmaps, connection weights, and loss curves.
+- **Multiple 2D datasets:** XOR, two moons, concentric circles, and double spiral with adjustable noise level.
+- **Configurable network architecture:** Customizable multi-layer perceptron depth (1, 2, or 3 layers) and neuron counts.
+- **Interactive canvas point painting:** Click anywhere on the decision surface to inject custom data points (normal click for Class A, Shift-click for Class B).
+- **Feature transformations:** Toggle polynomial and harmonic features ($X_1, X_2, X_1^2, X_2^2, X_1 X_2, \sin X_1, \sin X_2$).
+- **Generalization tracking:** 80% Train / 20% Test split with real-time dual loss curves and test accuracy.
+- **Rich non-linear activations:** Tanh, ReLU, LeakyReLU, and Sigmoid.
+- **Optimizers:** Adam and SGD with momentum, adjustable learning rate and batch size.
+- **Live visualizations & export:** Real-time decision surface contour heatmaps, connection weights, loss curves, and model weights JSON export.
 
 ### 2. Pure NumPy Deep Learning & Autograd Engine
 - **Reverse-Mode Autodiff:** Dynamic directed acyclic computation graphs (DAG) with topological sorting on `.backward()`.
 - **Broadcasting Adjoint Reduction:** Exact multi-dimensional broadcast gradient alignment (`unbroadcast`).
-- **Layers & Modules:** `Linear`, `Conv2d`, `MaxPool2d`, `Flatten`, `LayerNorm`, `Dropout`, `ReLU`, `GELU`, `Tanh`, `Sigmoid`, `Softmax`, and `Sequential`.
-- **Optimizers:** `SGD` (with momentum), `Adam`, `AdamW` (decoupled weight decay), and `RMSprop`.
+- **Layers & Modules:** `Linear`, `Conv2d`, `MaxPool2d`, `Flatten`, `LayerNorm`, `BatchNorm1d`, `Dropout`, `ReLU`, `LeakyReLU`, `GELU`, `Tanh`, `Sigmoid`, `Softmax`, and `Sequential`.
+- **Optimizers & Schedulers:** `SGD` (with momentum), `Adam`, `AdamW` (decoupled weight decay), `RMSprop`, `StepLR`, and `CosineAnnealingLR`.
 - **Model State Dicts:** Clean serialization and deserialization via `state_dict()` and `load_state_dict()`.
 - **Losses:** `MSELoss` and numerically stable log-sum-exp `CrossEntropyLoss`.
 - **Data Pipeline:** `Dataset`, `TensorDataset`, and batched `DataLoader`.
@@ -61,7 +64,8 @@ tensile/
 │   │   └── losses.py             # MSELoss & stable log-sum-exp CrossEntropyLoss
 │   ├── optim/
 │   │   ├── __init__.py           # Optimizer exports
-│   │   └── optimizer.py          # SGD, Adam, AdamW, and RMSprop optimizers
+│   │   ├── optimizer.py          # SGD, Adam, AdamW, and RMSprop optimizers
+│   │   └── lr_scheduler.py       # StepLR and CosineAnnealingLR schedulers
 │   ├── data/
 │   │   ├── __init__.py           # Data pipeline exports
 │   │   └── dataloader.py         # Dataset, TensorDataset, & DataLoader batching
