@@ -4,10 +4,12 @@ MNIST-dimensional dataset (1000 samples, 784 features, 10 classes).
 """
 
 from __future__ import annotations
+
 import numpy as np
+
 import tensile as tl
 from tensile import nn
-from tensile.data import TensorDataset, DataLoader
+from tensile.data import DataLoader, TensorDataset
 
 
 def generate_synthetic_mnist(

@@ -4,7 +4,7 @@ Functional operator interface for Tensile Tensors.
 """
 
 from __future__ import annotations
-from typing import Optional, Union
+
 from tensile.tensor import ArrayLike, Tensor, unbroadcast
 
 
@@ -46,7 +46,7 @@ def gelu(x: Tensor) -> Tensor:
 
 def sum(
     x: Tensor,
-    axis: Optional[Union[int, tuple[int, ...]]] = None,
+    axis: int | tuple[int, ...] | None = None,
     keepdims: bool = False,
 ) -> Tensor:
     return x.sum(axis=axis, keepdims=keepdims)
@@ -54,7 +54,7 @@ def sum(
 
 def mean(
     x: Tensor,
-    axis: Optional[Union[int, tuple[int, ...]]] = None,
+    axis: int | tuple[int, ...] | None = None,
     keepdims: bool = False,
 ) -> Tensor:
     return x.mean(axis=axis, keepdims=keepdims)

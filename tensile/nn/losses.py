@@ -4,20 +4,21 @@ Numerically stable loss functions and Modules for Tensile.
 """
 
 from __future__ import annotations
-from typing import Union
+
 import numpy as np
-from tensile.tensor import Tensor
+
 from tensile.nn.module import Module
+from tensile.tensor import Tensor
 
 
-def mse_loss(pred: Tensor, target: Union[Tensor, np.ndarray]) -> Tensor:
+def mse_loss(pred: Tensor, target: Tensor | np.ndarray) -> Tensor:
     """Computes Mean Squared Error: mean((pred - target)^2)."""
     target_t = target if isinstance(target, Tensor) else Tensor(target, requires_grad=False)
     diff = pred - target_t
     return (diff ** 2).mean()
 
 
-def cross_entropy(logits: Tensor, target: Union[Tensor, np.ndarray]) -> Tensor:
+def cross_entropy(logits: Tensor, target: Tensor | np.ndarray) -> Tensor:
     """
     Numerically stable categorical cross-entropy loss using direct log-sum-exp:
         L = (1 / N) * sum_i ( log(sum_j exp(z_{i,j} - m_i)) + m_i - z_{i, y_i} )
@@ -80,7 +81,7 @@ def cross_entropy(logits: Tensor, target: Union[Tensor, np.ndarray]) -> Tensor:
 class CrossEntropyLoss(Module):
     """Module wrapper for numerically stable CrossEntropyLoss."""
 
-    def forward(self, logits: Tensor, target: Union[Tensor, np.ndarray]) -> Tensor:
+    def forward(self, logits: Tensor, target: Tensor | np.ndarray) -> Tensor:
         return cross_entropy(logits, target)
 
     def __repr__(self) -> str:
@@ -90,7 +91,7 @@ class CrossEntropyLoss(Module):
 class MSELoss(Module):
     """Module wrapper for Mean Squared Error Loss."""
 
-    def forward(self, pred: Tensor, target: Union[Tensor, np.ndarray]) -> Tensor:
+    def forward(self, pred: Tensor, target: Tensor | np.ndarray) -> Tensor:
         return mse_loss(pred, target)
 
     def __repr__(self) -> str:

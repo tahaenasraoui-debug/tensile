@@ -6,11 +6,13 @@ built from scratch with pure NumPy.
 """
 
 from __future__ import annotations
+
 import time
+
 import numpy as np
-import tensile as tl
+
 from tensile import Tensor, nn, optim
-from tensile.data import TensorDataset, DataLoader
+from tensile.data import DataLoader, TensorDataset
 
 
 def generate_synthetic_digit_data(

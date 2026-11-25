@@ -3,7 +3,9 @@ Learning rate schedulers for Tensile optimizers.
 """
 
 from __future__ import annotations
+
 import math
+
 from tensile.optim.optimizer import Optimizer
 
 

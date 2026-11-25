@@ -1,22 +1,22 @@
 # tensile/nn/__init__.py
-from tensile.nn.module import Module
 from tensile.nn.layers import (
-    Linear,
-    ReLU,
-    LeakyReLU,
-    Sigmoid,
-    Tanh,
     GELU,
-    Softmax,
-    Dropout,
-    LayerNorm,
     BatchNorm1d,
-    Flatten,
     Conv2d,
+    Dropout,
+    Flatten,
+    LayerNorm,
+    LeakyReLU,
+    Linear,
     MaxPool2d,
+    ReLU,
     Sequential,
+    Sigmoid,
+    Softmax,
+    Tanh,
 )
-from tensile.nn.losses import mse_loss, cross_entropy, CrossEntropyLoss, MSELoss
+from tensile.nn.losses import CrossEntropyLoss, MSELoss, cross_entropy, mse_loss
+from tensile.nn.module import Module
 
 __all__ = [
     "Module",

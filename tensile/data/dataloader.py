@@ -3,8 +3,12 @@ Dataset and DataLoader abstractions for batching and shuffling data.
 """
 
 from __future__ import annotations
-from typing import Any, Iterator, Union
+
+from collections.abc import Iterator
+from typing import Any
+
 import numpy as np
+
 from tensile.tensor import Tensor
 
 
@@ -14,7 +18,7 @@ class Dataset:
     def __len__(self) -> int:
         raise NotImplementedError("Dataset subclasses must implement __len__().")
 
-    def __getitem__(self, index: Union[int, np.ndarray, slice]) -> Any:
+    def __getitem__(self, index: int | np.ndarray | slice) -> Any:
         raise NotImplementedError("Dataset subclasses must implement __getitem__().")
 
 
@@ -24,7 +28,7 @@ class TensorDataset(Dataset):
     All arrays must share the same first dimension size (number of samples).
     """
 
-    def __init__(self, *tensors: Union[np.ndarray, Tensor]) -> None:
+    def __init__(self, *tensors: np.ndarray | Tensor) -> None:
         if len(tensors) == 0:
             raise ValueError("TensorDataset requires at least one array or Tensor.")
 
@@ -38,7 +42,7 @@ class TensorDataset(Dataset):
     def __len__(self) -> int:
         return self.tensors[0].shape[0]
 
-    def __getitem__(self, index: Union[int, np.ndarray, slice]) -> tuple[np.ndarray, ...]:
+    def __getitem__(self, index: int | np.ndarray | slice) -> tuple[np.ndarray, ...]:
         return tuple(arr[index] for arr in self.tensors)
 
 
@@ -63,7 +67,7 @@ class DataLoader:
     def __len__(self) -> int:
         return (len(self.dataset) + self.batch_size - 1) // self.batch_size
 
-    def __iter__(self) -> Iterator[Union[Tensor, tuple[Tensor, ...]]]:
+    def __iter__(self) -> Iterator[Tensor | tuple[Tensor, ...]]:
         n_samples = len(self.dataset)
         indices = np.arange(n_samples)
         if self.shuffle:

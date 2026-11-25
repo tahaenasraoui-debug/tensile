@@ -4,10 +4,13 @@ Neural network layers, activations, convolutional modules, and sequential contai
 """
 
 from __future__ import annotations
-from typing import Optional, Sequence, Union
+
+from collections.abc import Sequence
+
 import numpy as np
-from tensile.tensor import Tensor, unbroadcast
+
 from tensile.nn.module import Module
+from tensile.tensor import Tensor, unbroadcast
 
 
 class Linear(Module):
@@ -32,7 +35,7 @@ class Linear(Module):
         self.weight = Tensor(weight_data, requires_grad=True, name=f"{prefix}weight")
 
         if bias:
-            self.bias: Optional[Tensor] = Tensor(
+            self.bias: Tensor | None = Tensor(
                 np.zeros((out_features,), dtype=np.float64),
                 requires_grad=True,
                 name=f"{prefix}bias",
@@ -162,7 +165,7 @@ class LayerNorm(Module):
 
     def __init__(
         self,
-        normalized_shape: Union[int, Sequence[int]],
+        normalized_shape: int | Sequence[int],
         eps: float = 1e-5,
         elementwise_affine: bool = True,
     ) -> None:
@@ -287,8 +290,10 @@ class BatchNorm1d(Module):
             self.weight = None
             self.bias = None
 
-        self.running_mean = np.zeros((num_features,), dtype=np.float64)
-        self.running_var = np.ones((num_features,), dtype=np.float64)
+        self.running_mean: np.ndarray
+        self.running_var: np.ndarray
+        self.register_buffer("running_mean", np.zeros((num_features,), dtype=np.float64))
+        self.register_buffer("running_var", np.ones((num_features,), dtype=np.float64))
 
     def forward(self, x: Tensor) -> Tensor:
         if x.ndim not in (2, 3):
@@ -307,14 +312,14 @@ class BatchNorm1d(Module):
             std_inv = 1.0 / np.sqrt(var + self.eps)
             x_hat = (x.data - mean) * std_inv
 
-            # Update running statistics with momentum
-            mean_flat = mean.squeeze()
-            var_flat = var.squeeze()
+            # Update running statistics with momentum (squeeze only reduction axes so num_features=1 stays 1D)
+            mean_flat = mean.squeeze(axis=axes)
+            var_flat = var.squeeze(axis=axes)
             unbiased_var = var_flat * (n / max(1, n - 1))
-            self.running_mean = (
+            self.running_mean[...] = (
                 (1.0 - self.momentum) * self.running_mean + self.momentum * mean_flat
             )
-            self.running_var = (
+            self.running_var[...] = (
                 (1.0 - self.momentum) * self.running_var + self.momentum * unbiased_var
             )
         else:
@@ -503,9 +508,9 @@ class Conv2d(Module):
         self,
         in_channels: int,
         out_channels: int,
-        kernel_size: Union[int, tuple[int, int]],
-        stride: Union[int, tuple[int, int]] = 1,
-        padding: Union[int, tuple[int, int]] = 0,
+        kernel_size: int | tuple[int, int],
+        stride: int | tuple[int, int] = 1,
+        padding: int | tuple[int, int] = 0,
         bias: bool = True,
     ) -> None:
         super().__init__()
@@ -524,7 +529,7 @@ class Conv2d(Module):
 
         if bias:
             bias_data = np.random.uniform(-k, k, size=(out_channels,))
-            self.bias: Optional[Tensor] = Tensor(bias_data, requires_grad=True, name="bias")
+            self.bias: Tensor | None = Tensor(bias_data, requires_grad=True, name="bias")
         else:
             self.bias = None
 
@@ -606,9 +611,9 @@ class MaxPool2d(Module):
 
     def __init__(
         self,
-        kernel_size: Union[int, tuple[int, int]],
-        stride: Optional[Union[int, tuple[int, int]]] = None,
-        padding: Union[int, tuple[int, int]] = 0,
+        kernel_size: int | tuple[int, int],
+        stride: int | tuple[int, int] | None = None,
+        padding: int | tuple[int, int] = 0,
     ) -> None:
         super().__init__()
         self.kernel_size = (
@@ -723,7 +728,7 @@ class Softmax(Module):
 
 
 class Sequential(Module):
-    def __init__(self, *layers: Union[Module, Sequence[Module]]) -> None:
+    def __init__(self, *layers: Module | Sequence[Module]) -> None:
         super().__init__()
         if len(layers) == 1 and isinstance(layers[0], (list, tuple)):
             self.layers: list[Module] = list(layers[0])
@@ -736,7 +741,7 @@ class Sequential(Module):
         return x
 
     def named_modules(
-        self, prefix: str = "", memo: Optional[set[int]] = None
+        self, prefix: str = "", memo: set[int] | None = None
     ):
         if memo is None:
             memo = set()

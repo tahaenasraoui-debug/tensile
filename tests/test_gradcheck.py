@@ -6,9 +6,12 @@ activation, reduction, and loss operations.
 """
 
 from __future__ import annotations
-from typing import Callable
+
+from collections.abc import Callable
+
 import numpy as np
 import pytest
+
 from tensile import Tensor, nn, unbroadcast
 
 
@@ -165,6 +168,41 @@ def test_cross_entropy_and_mlp_gradcheck() -> None:
         return criterion(logits, y_idx)
 
     assert_gradcheck(forward, [x, fc1.weight, fc1.bias, fc2.weight, fc2.bias])
+
+
+def test_leaky_relu_softmax_and_mse_gradcheck() -> None:
+    np.random.seed(107)
+    x = Tensor(np.random.randn(4, 5), requires_grad=True)
+    x.data = np.where(np.abs(x.data) < 0.15, 0.25, x.data)
+    target = np.random.randn(4, 5)
+
+    leaky = nn.LeakyReLU(negative_slope=0.15)
+    softmax = nn.Softmax(dim=-1)
+    mse = nn.MSELoss()
+
+    def forward() -> Tensor:
+        return mse(softmax(leaky(x)), target)
+
+    assert_gradcheck(forward, [x])
+
+
+@pytest.mark.parametrize("shape", [(4, 3), (4, 1), (3, 1, 4)])
+def test_batchnorm1d_gradcheck(shape: tuple[int, ...]) -> None:
+    np.random.seed(108)
+    num_features = shape[1]
+    x = Tensor(np.random.randn(*shape), requires_grad=True)
+    weights = np.random.randn(*shape)
+    bn = nn.BatchNorm1d(num_features, eps=1e-5, momentum=0.1)
+    bn.weight.data[...] = np.random.uniform(0.5, 1.5, size=(num_features,))
+    bn.bias.data[...] = np.random.randn(num_features)
+
+    def forward() -> Tensor:
+        # Reset running stats so finite-difference calls don't depend on call order
+        bn.running_mean[...] = 0.0
+        bn.running_var[...] = 1.0
+        return (bn(x) * weights).sum()
+
+    assert_gradcheck(forward, [x, bn.weight, bn.bias])
 
 
 if __name__ == "__main__":

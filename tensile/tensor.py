@@ -6,7 +6,10 @@ and topological graph serialization for interactive visualization.
 """
 
 from __future__ import annotations
-from typing import Any, Callable, Iterable, Optional, Sequence, Union
+
+from collections.abc import Callable, Iterable, Sequence
+from typing import Any, Union
+
 import numpy as np
 
 ArrayLike = Union[int, float, list, np.ndarray, "Tensor"]
@@ -28,7 +31,7 @@ def unbroadcast(grad: np.ndarray, target_shape: tuple[int, ...]) -> np.ndarray:
 
     # 2. Sum across singleton dimensions (where target_shape[i] == 1 and grad.shape[i] > 1)
     singleton_axes = tuple(
-        i for i, (g_dim, t_dim) in enumerate(zip(grad.shape, target_shape))
+        i for i, (g_dim, t_dim) in enumerate(zip(grad.shape, target_shape, strict=True))
         if t_dim == 1 and g_dim > 1
     )
     if singleton_axes:
@@ -49,7 +52,7 @@ class Tensor:
         self,
         data: ArrayLike,
         requires_grad: bool = False,
-        _prev: Iterable["Tensor"] = (),
+        _prev: Iterable[Tensor] = (),
         _op: str = "",
         name: str = "",
     ) -> None:
@@ -72,7 +75,7 @@ class Tensor:
             self.data = raw.astype(np.float64)
 
         self.requires_grad: bool = bool(requires_grad)
-        self.grad: Optional[np.ndarray] = (
+        self.grad: np.ndarray | None = (
             np.zeros_like(self.data, dtype=np.float64) if self.requires_grad else None
         )
         # Preserve deterministic parent ordering for visualization while supporting set semantics
@@ -156,7 +159,7 @@ class Tensor:
                     stack.append((parent, False))
         return topo
 
-    def backward(self, grad: Optional[np.ndarray] = None) -> None:
+    def backward(self, grad: np.ndarray | None = None) -> None:
         """
         Executes reverse-mode automatic differentiation over the DAG rooted at `self`.
         """
@@ -308,7 +311,7 @@ class Tensor:
         other_t = self._ensure_tensor(other)
         return other_t / self
 
-    def __pow__(self, exponent: Union[int, float, Tensor]) -> Tensor:
+    def __pow__(self, exponent: int | float | Tensor) -> Tensor:
         exp_t = self._ensure_tensor(exponent)
         req_grad = self.requires_grad or exp_t.requires_grad
         op_label = f"Pow({exponent})" if isinstance(exponent, (int, float)) else "Pow"
@@ -472,7 +475,7 @@ class Tensor:
     # -------------------------------------------------------------------------
     def sum(
         self,
-        axis: Optional[Union[int, tuple[int, ...]]] = None,
+        axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
     ) -> Tensor:
         out = Tensor(
@@ -497,7 +500,7 @@ class Tensor:
 
     def mean(
         self,
-        axis: Optional[Union[int, tuple[int, ...]]] = None,
+        axis: int | tuple[int, ...] | None = None,
         keepdims: bool = False,
     ) -> Tensor:
         out = Tensor(
@@ -524,7 +527,7 @@ class Tensor:
         out._backward = _backward
         return out
 
-    def reshape(self, *shape: Union[int, Sequence[int]]) -> Tensor:
+    def reshape(self, *shape: int | Sequence[int]) -> Tensor:
         if len(shape) == 1 and isinstance(shape[0], (tuple, list)):
             target_shape = tuple(shape[0])
         else:
@@ -545,7 +548,7 @@ class Tensor:
         out._backward = _backward
         return out
 
-    def transpose(self, *axes: Union[int, Sequence[int]]) -> Tensor:
+    def transpose(self, *axes: int | Sequence[int]) -> Tensor:
         if len(axes) == 0:
             perm = None
         elif len(axes) == 1 and isinstance(axes[0], (tuple, list)):

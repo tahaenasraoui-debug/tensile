@@ -6,14 +6,15 @@ analytical gradients, and optimizer updates within `atol=1e-6`.
 """
 
 from __future__ import annotations
+
 import numpy as np
 import pytest
 
-torch = pytest.importorskip("torch")
-import torch.nn.functional as F
-
 import tensile as tl
 from tensile import Tensor, nn
+
+torch = pytest.importorskip("torch")
+import torch.nn.functional as F  # noqa: E402
 
 
 def test_activations_and_batched_matmul_pytorch_parity() -> None:
@@ -97,3 +98,44 @@ def test_mlp_forward_backward_and_adam_step_parity() -> None:
         # Verify updated weights match after Adam step
         assert np.allclose(fc1_tl.weight.data, w1_pt.detach().numpy(), atol=1e-6)
         assert np.allclose(fc2_tl.weight.data, w2_pt.detach().numpy(), atol=1e-6)
+
+
+def test_sgd_momentum_weight_decay_pytorch_parity() -> None:
+    rng = np.random.default_rng(314)
+    p_np = rng.normal(size=(4, 5))
+    grads = [rng.normal(size=(4, 5)) for _ in range(4)]
+
+    p_tl = Tensor(p_np.copy(), requires_grad=True)
+    opt_tl = tl.optim.SGD([p_tl], lr=0.05, momentum=0.9, weight_decay=0.01)
+
+    p_pt = torch.tensor(p_np.copy(), dtype=torch.float64, requires_grad=True)
+    opt_pt = torch.optim.SGD([p_pt], lr=0.05, momentum=0.9, weight_decay=0.01)
+
+    for g in grads:
+        p_tl.grad = g.copy()
+        opt_tl.step()
+
+        p_pt.grad = torch.tensor(g.copy(), dtype=torch.float64)
+        opt_pt.step()
+
+        assert np.allclose(p_tl.data, p_pt.detach().numpy(), atol=1e-6)
+
+
+def test_leaky_relu_softmax_and_mse_pytorch_parity() -> None:
+    rng = np.random.default_rng(271)
+    x_np = rng.normal(size=(5, 4))
+    target_np = rng.normal(size=(5, 4))
+
+    x_tl = Tensor(x_np.copy(), requires_grad=True)
+    out_tl = nn.MSELoss()(nn.Softmax(dim=-1)(nn.LeakyReLU(0.2)(x_tl)), target_np)
+    out_tl.backward()
+
+    x_pt = torch.tensor(x_np.copy(), dtype=torch.float64, requires_grad=True)
+    out_pt = F.mse_loss(
+        F.softmax(F.leaky_relu(x_pt, negative_slope=0.2), dim=-1),
+        torch.tensor(target_np, dtype=torch.float64),
+    )
+    out_pt.backward()
+
+    assert np.allclose(out_tl.data, out_pt.detach().numpy(), atol=1e-6)
+    assert np.allclose(x_tl.grad, x_pt.grad.numpy(), atol=1e-6)

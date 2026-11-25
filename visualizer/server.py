@@ -8,8 +8,10 @@ Launch via:
 """
 
 from __future__ import annotations
+
 from pathlib import Path
 from typing import Any, Literal
+
 import numpy as np
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware

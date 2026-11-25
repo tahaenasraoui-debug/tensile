@@ -5,14 +5,14 @@ Asserts bit-for-bit mathematical alignment with PyTorch autograd and optimizers.
 """
 
 from __future__ import annotations
+
 import numpy as np
 import pytest
 
-torch = pytest.importorskip("torch")
-import torch.nn.functional as F
-
-import tensile as tl
 from tensile import Tensor, nn, optim
+
+torch = pytest.importorskip("torch")
+import torch.nn.functional as F  # noqa: E402
 
 
 def test_conv2d_forward_and_backward_pytorch_parity() -> None:
@@ -242,6 +242,43 @@ def test_batchnorm1d_forward_and_backward_parity() -> None:
     assert np.allclose(x_tl.grad, x_pt.grad.numpy(), atol=1e-6)
     assert np.allclose(bn_tl.weight.grad, bn_pt.weight.grad.numpy(), atol=1e-6)
     assert np.allclose(bn_tl.bias.grad, bn_pt.bias.grad.numpy(), atol=1e-6)
+
+
+@pytest.mark.parametrize("shape", [(5, 3), (5, 1), (3, 1, 4)])
+def test_batchnorm1d_eval_and_state_dict_pytorch_parity(shape: tuple[int, ...]) -> None:
+    rng = np.random.default_rng(2026)
+    num_features = shape[1]
+    w_np = rng.normal(size=(num_features,))
+    b_np = rng.normal(size=(num_features,))
+
+    bn_tl = nn.BatchNorm1d(num_features, eps=1e-5, momentum=0.2)
+    bn_tl.weight.data[...] = w_np.copy()
+    bn_tl.bias.data[...] = b_np.copy()
+
+    bn_pt = torch.nn.BatchNorm1d(num_features, eps=1e-5, momentum=0.2, dtype=torch.float64)
+    with torch.no_grad():
+        bn_pt.weight.copy_(torch.tensor(w_np))
+        bn_pt.bias.copy_(torch.tensor(b_np))
+
+    # Run several training batches to update running_mean & running_var
+    for _ in range(4):
+        batch = rng.normal(loc=3.0, scale=2.0, size=shape)
+        _ = bn_tl(Tensor(batch.copy(), requires_grad=False))
+        _ = bn_pt(torch.tensor(batch.copy(), dtype=torch.float64))
+
+    assert np.allclose(bn_tl.running_mean, bn_pt.running_mean.detach().numpy(), atol=1e-6)
+    assert np.allclose(bn_tl.running_var, bn_pt.running_var.detach().numpy(), atol=1e-6)
+
+    # Save & load into fresh Tensile BatchNorm1d and verify eval parity against PyTorch
+    bn_tl_loaded = nn.BatchNorm1d(num_features, eps=1e-5, momentum=0.2)
+    bn_tl_loaded.load_state_dict(bn_tl.state_dict())
+    bn_tl_loaded.eval()
+    bn_pt.eval()
+
+    x_eval = rng.normal(loc=-1.0, scale=1.5, size=shape)
+    out_tl = bn_tl_loaded(Tensor(x_eval.copy(), requires_grad=False))
+    out_pt = bn_pt(torch.tensor(x_eval.copy(), dtype=torch.float64))
+    assert np.allclose(out_tl.data, out_pt.detach().numpy(), atol=1e-6)
 
 
 def test_lr_schedulers_step_parity() -> None:

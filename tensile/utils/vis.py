@@ -3,27 +3,33 @@ Computational graph visualization utility using Graphviz.
 """
 
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
+
 import numpy as np
 
 if TYPE_CHECKING:
     import graphviz
+
     from tensile.tensor import Tensor
 
 
 def _trace(root: Tensor) -> tuple[set[Tensor], set[tuple[Tensor, Tensor]]]:
-    """Traverses `_prev` references from `root` to collect all nodes and directed edges."""
+    """Iteratively traverses `_prev` references from `root` to collect all nodes and directed edges."""
     nodes: set[Tensor] = set()
     edges: set[tuple[Tensor, Tensor]] = set()
+    stack: list[Tensor] = [root]
 
-    def build(v: Tensor) -> None:
-        if v not in nodes:
-            nodes.add(v)
-            for child in v._prev:
-                edges.add((child, v))
-                build(child)
+    while stack:
+        v = stack.pop()
+        if v in nodes:
+            continue
+        nodes.add(v)
+        for child in v._prev:
+            edges.add((child, v))
+            if child not in nodes:
+                stack.append(child)
 
-    build(root)
     return nodes, edges
 
 

@@ -11,7 +11,7 @@
 # Tensile — Neural Network Workbench & Autograd Engine
 
 [![Live Demo](https://img.shields.io/badge/Live_Demo-GitHub_Pages-2ea44f?style=for-the-badge&logo=github)](https://tahaenasraoui-debug.github.io/tensile/)
-[![Tests](https://img.shields.io/badge/Tests-PyTorch_Parity_Passed-success?style=for-the-badge)](tests/)
+[![CI](https://github.com/tahaenasraoui-debug/tensile/actions/workflows/ci.yml/badge.svg)](https://github.com/tahaenasraoui-debug/tensile/actions/workflows/ci.yml)
 
 **Tensile** is a clean, readable, and production-grade reverse-mode automatic differentiation engine and deep learning framework built from scratch in **pure NumPy** (Python 3.11+), paired with an interactive **in-browser Computational Graph Inspector & 2D Neural Network Sandbox**.
 
@@ -35,11 +35,11 @@ It provides complete algorithmic transparency into how tensors, DAG reverse-mode
 - **Live visualizations & export:** Real-time decision surface contour heatmaps, connection weights, loss curves, and model weights JSON export.
 
 ### 2. Pure NumPy Deep Learning & Autograd Engine
-- **Reverse-Mode Autodiff:** Dynamic directed acyclic computation graphs (DAG) with topological sorting on `.backward()`.
+- **Reverse-Mode Autodiff:** Dynamic directed acyclic computation graphs (DAG) with iterative post-order topological sorting on `.backward()`.
 - **Broadcasting Adjoint Reduction:** Exact multi-dimensional broadcast gradient alignment (`unbroadcast`).
 - **Layers & Modules:** `Linear`, `Conv2d`, `MaxPool2d`, `Flatten`, `LayerNorm`, `BatchNorm1d`, `Dropout`, `ReLU`, `LeakyReLU`, `GELU`, `Tanh`, `Sigmoid`, `Softmax`, and `Sequential`.
 - **Optimizers & Schedulers:** `SGD` (with momentum), `Adam`, `AdamW` (decoupled weight decay), `RMSprop`, `StepLR`, and `CosineAnnealingLR`.
-- **Model State Dicts:** Clean serialization and deserialization via `state_dict()` and `load_state_dict()`.
+- **Model State Dicts:** Clean serialization and deserialization of parameters and buffers via `state_dict()` and `load_state_dict()`.
 - **Losses:** `MSELoss` and numerically stable log-sum-exp `CrossEntropyLoss`.
 - **Data Pipeline:** `Dataset`, `TensorDataset`, and batched `DataLoader`.
 
@@ -59,8 +59,8 @@ tensile/
 │   ├── ops.py                    # Functional operator interfaces
 │   ├── nn/
 │   │   ├── __init__.py           # Neural network module exports
-│   │   ├── module.py             # Base Module with train/eval modes and state_dict
-│   │   ├── layers.py             # Linear, Conv2d, MaxPool2d, Flatten, LayerNorm, Dropout, activations
+│   │   ├── module.py             # Base Module with train/eval modes, buffers, and state_dict
+│   │   ├── layers.py             # Linear, Conv2d, MaxPool2d, Flatten, LayerNorm, BatchNorm1d, Dropout, activations
 │   │   └── losses.py             # MSELoss & stable log-sum-exp CrossEntropyLoss
 │   ├── optim/
 │   │   ├── __init__.py           # Optimizer exports
@@ -75,14 +75,18 @@ tensile/
 ├── visualizer/
 │   ├── server.py                 # FastAPI backend (/step, /graph) & 2D dataset generator
 │   └── web/
-│       └── index.html            # Local dashboard UI
+│       ├── index.html            # Local dashboard UI
+│       └── app.js                # Local DAG & decision-boundary canvas client
 ├── tests/
 │   ├── test_gradcheck.py         # Finite-difference numerical gradient checker (rel error < 1e-5)
 │   ├── test_pytorch_parity.py    # Bit-for-bit forward/backward parity checks against PyTorch
-│   └── test_cnn_parity.py        # PyTorch parity tests for Conv2d, MaxPool2d, and LayerNorm
+│   ├── test_cnn_parity.py        # PyTorch parity tests for Conv2d, MaxPool2d, LayerNorm, BatchNorm1d & schedulers
+│   ├── test_backward_regressions.py # Regression tests for deep graphs, shared subexpressions & repeated backward
+│   └── test_components.py        # Unit tests for buffers, BatchNorm1d, SGD, losses, activations, DataLoader, vis & ops
 ├── examples/
 │   ├── train_mnist_synthetic.py  # End-to-end 10-class MLP classification benchmark
 │   └── train_cnn_mnist.py        # Convolutional neural network digit classification benchmark
+├── LICENSE                       # MIT License
 ├── pyproject.toml                # Project build configuration & dependencies
 └── README.md
 ```
@@ -114,6 +118,16 @@ pip install --upgrade pip
 pip install -e ".[dev]"
 ```
 
+### 3. FastAPI Computational Graph Visualizer
+
+Install the visualizer optional dependencies and launch the local FastAPI backend:
+
+```bash
+pip install -e ".[visualizer]"
+uvicorn visualizer.server:app --reload
+```
+Then visit `http://127.0.0.1:8000`.
+
 ---
 
 ## Running Verification Tests
@@ -132,8 +146,9 @@ Verifies forward activations, cross-entropy loss, analytical gradients, and opti
 pytest tests/test_pytorch_parity.py -v
 ```
 
-### 3. Run Entire Test Suite
+### 3. Run Entire Test Suite & Linter
 ```bash
+ruff check .
 PYTHONPATH=. pytest tests/ -v
 ```
 
@@ -141,7 +156,7 @@ PYTHONPATH=. pytest tests/ -v
 
 ## Core Architecture Highlights
 
-- **Reverse-Mode Autograd (`Tensor`):** Tracks dynamic computational graphs via `_prev` / `_parents` pointers and executes Depth-First Search (DFS) topological sorting during `.backward()`.
+- **Reverse-Mode Autograd (`Tensor`):** Tracks dynamic computational graphs via `_prev` / `_parents` pointers and executes iterative post-order topological sorting during `.backward()` so deep graphs avoid Python recursion limits.
 - **Broadcasting Invariance (`unbroadcast`):** Automatically contracts prepended higher-rank dimensions and sums across singleton broadcast axes (`keepdims=True`) so gradient shapes strictly match operand shapes across elementwise ops and N-D batched `matmul`.
 - **Numerically Stable `CrossEntropyLoss`:** Computes categorical cross-entropy directly via the log-sum-exp trick:
   $$\mathcal{L} = \frac{1}{N} \sum_{i=1}^N \left( \log \sum_{j} e^{z_{i, j} - m_i} + m_i - z_{i, y_i} \right)$$
