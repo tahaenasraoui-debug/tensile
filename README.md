@@ -17,7 +17,7 @@
 
 It provides complete algorithmic transparency into how tensors, DAG reverse-mode autodiff, broadcasting adjoint reduction, neural network layers (Linear, Conv2d, MaxPool2d, LayerNorm, Dropout), optimizers (SGD, Adam, AdamW, RMSprop), and backpropagation work under the hood.
 
-🌐 **Live Interactive Web Sandbox:** **[https://tahaenasraoui-debug.github.io/tensile/](https://tahaenasraoui-debug.github.io/tensile/)**
+**Live Interactive Web Sandbox:** **[https://tahaenasraoui-debug.github.io/tensile/](https://tahaenasraoui-debug.github.io/tensile/)**
 
 ---
 
